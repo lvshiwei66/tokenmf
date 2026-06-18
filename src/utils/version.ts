@@ -7,7 +7,7 @@ export function getVersion(dir: string): string | undefined {
 
   try {
     const content = readFileSync(pkgPath, "utf-8");
-    const pkg = JSON.parse(content);
+    const pkg = JSON.parse(content) as Record<string, unknown>;
     return typeof pkg.version === "string" ? pkg.version : undefined;
   } catch {
     return undefined;

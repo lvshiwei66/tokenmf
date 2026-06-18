@@ -38,8 +38,8 @@ describe("Setup command", () => {
   it("setup generates valid JSON report", async () => {
     await setup();
     const content = readFileSync(reportPath, "utf-8");
-    const report = JSON.parse(content);
-    
+    const report = JSON.parse(content) as Record<string, unknown>;
+
     expect(report).toHaveProperty("timestamp");
     expect(report).toHaveProperty("apps");
     expect(report).toHaveProperty("fingerprint");
@@ -50,16 +50,16 @@ describe("Setup command", () => {
   it("setup fingerprint is consistent across runs", async () => {
     await setup();
     const content1 = readFileSync(reportPath, "utf-8");
-    const report1 = JSON.parse(content1);
-    
+    const report1 = JSON.parse(content1) as Record<string, unknown>;
+
     if (existsSync(reportPath)) {
       unlinkSync(reportPath);
     }
-    
+
     await setup();
     const content2 = readFileSync(reportPath, "utf-8");
-    const report2 = JSON.parse(content2);
-    
+    const report2 = JSON.parse(content2) as Record<string, unknown>;
+
     expect(report1.fingerprint).toBe(report2.fingerprint);
   });
 });
