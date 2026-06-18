@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { setup } from "./commands/setup.js";
 
@@ -26,7 +27,10 @@ export function createProgram() {
   return program;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+const scriptPath = process.argv[1];
+const modulePath = fileURLToPath(import.meta.url);
+
+if (scriptPath && realpathSync(scriptPath) === realpathSync(modulePath)) {
   const program = createProgram();
   program.parse();
 }
