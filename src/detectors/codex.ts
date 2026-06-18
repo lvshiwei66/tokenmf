@@ -6,7 +6,7 @@ import type { Detector, AppConfig } from "./types.js";
 export class CodexDetector implements Detector {
   name = "codex";
 
-  async detect(): Promise<AppConfig | null> {
+  detect(): AppConfig | null {
     const configDir = join(homedir(), ".codex");
     const configPath = join(configDir, "config.toml");
     

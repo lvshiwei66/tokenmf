@@ -8,7 +8,7 @@ import type { DetectionReport } from "../detectors/types.js";
 export async function setup(): Promise<void> {
   console.log("🔍 正在扫描已安装的 AI 应用...\n");
 
-  const apps = await detectAllApps();
+  const apps = detectAllApps();
   
   if (apps.length === 0) {
     console.log("ℹ️  未检测到任何已安装的 AI 应用。");
@@ -19,7 +19,7 @@ export async function setup(): Promise<void> {
     return;
   }
 
-  console.log(`✅ 检测到 ${apps.length} 个应用：\n`);
+  console.log(`✅ 检测到 ${String(apps.length)} 个应用：\n`);
   
   for (const app of apps) {
     console.log(`  📦 ${app.name}`);

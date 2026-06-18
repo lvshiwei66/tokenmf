@@ -1,14 +1,9 @@
-import type { AppConfig } from "./types.js";
+import type { AppConfig, Detector } from "./types.js";
 import { CodexDetector } from "./codex.js";
 import { ClaudeCodeDetector } from "./claude-code.js";
 import { OpenClawDetector } from "./openclaw.js";
 
-export interface Detector {
-  name: string;
-  detect(): Promise<AppConfig | null>;
-}
-
-export async function detectAllApps(): Promise<AppConfig[]> {
+export function detectAllApps(): AppConfig[] {
   const detectors: Detector[] = [
     new CodexDetector(),
     new ClaudeCodeDetector(),
@@ -19,7 +14,7 @@ export async function detectAllApps(): Promise<AppConfig[]> {
   
   for (const detector of detectors) {
     try {
-      const app = await detector.detect();
+      const app = detector.detect();
       if (app) {
         apps.push(app);
       }

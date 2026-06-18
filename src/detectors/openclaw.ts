@@ -6,7 +6,7 @@ import type { Detector, AppConfig } from "./types.js";
 export class OpenClawDetector implements Detector {
   name = "openclaw";
 
-  async detect(): Promise<AppConfig | null> {
+  detect(): AppConfig | null {
     const configDir = join(homedir(), ".openclaw");
     const configPath = join(configDir, "config.yaml");
     

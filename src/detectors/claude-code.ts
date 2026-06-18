@@ -6,7 +6,7 @@ import type { Detector, AppConfig } from "./types.js";
 export class ClaudeCodeDetector implements Detector {
   name = "claude-code";
 
-  async detect(): Promise<AppConfig | null> {
+  detect(): AppConfig | null {
     const configDir = join(homedir(), ".claude");
     const configPath = join(configDir, "settings.json");
     

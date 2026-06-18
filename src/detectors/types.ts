@@ -6,6 +6,11 @@ export interface AppConfig {
   configFormat: "toml" | "json" | "yaml";
 }
 
+export interface Detector {
+  name: string;
+  detect(): AppConfig | null;
+}
+
 export interface DetectionReport {
   timestamp: string;
   apps: AppConfig[];
