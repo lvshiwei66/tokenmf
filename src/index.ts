@@ -4,8 +4,10 @@ import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { setup } from "./commands/setup.js";
 import { listAction } from "./commands/list.js";
+import { askAction } from "./commands/ask.js";
 import { getConfig, getApiUrl, CONFIG_PATH } from "./config.js";
 import { useCommand } from "./commands/use.js";
+import { loadSettings } from "./config/settings.js";
 
 export function createProgram() {
   const program = new Command();
@@ -28,7 +30,11 @@ export function createProgram() {
         options: { key?: string; model?: string; app?: string },
       ) => {
         try {
-          await useCommand(provider, options);
+          const config = await getConfig(CONFIG_PATH);
+          const apiUrl = getApiUrl(config);
+          const settings = await loadSettings();
+          const clientId = settings.clientId;
+          await useCommand(provider, options, apiUrl, clientId);
         } catch (error) {
           console.error(
             "❌ 错误:",
@@ -61,6 +67,26 @@ export function createProgram() {
         },
         { all: options.all === true, debug },
       );
+    });
+
+  program
+    .command("ask <provider>")
+    .description("查询供应商详情")
+    .action(async (provider: string) => {
+      const debug = program.opts().debug === true;
+
+      // Auto-run setup if config is missing
+      let config = await getConfig(CONFIG_PATH);
+      if (!config) {
+        console.log("🔧 未检测到配置，正在自动运行 setup...\n");
+        await setup();
+        config = await getConfig(CONFIG_PATH);
+      }
+
+      await askAction(provider, {
+        getConfig: () => Promise.resolve(config),
+        getApiUrl,
+      }, { debug });
     });
 
   return program;

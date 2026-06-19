@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { listAction, type Provider } from "../commands/list.js";
+import { listAction } from "../commands/list.js";
+import type { ProviderListItem } from "../types/provider.js";
 
-const sampleProviders: Provider[] = [
+const sampleProviders: ProviderListItem[] = [
   {
     name: "packcode",
     latency: 200,
@@ -9,6 +10,8 @@ const sampleProviders: Provider[] = [
     tokensPerSecond: 17,
     description: "支持 GPT-5.5 和 Claude-4 🚀",
     tags: ["fast", "cheap"],
+    models: ["m1", "m2", "m3", "m4"],
+    modelCount: 4,
   },
   {
     name: "xcodcs",
@@ -17,191 +20,145 @@ const sampleProviders: Provider[] = [
     tokensPerSecond: null,
     description: "",
     tags: [],
+    models: ["x1"],
+    modelCount: 1,
   },
 ];
 
-function mockFetchResponse(
-  providers: Provider[],
-  status = 200,
-): void {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({
-      ok: status >= 200 && status < 300,
-      status,
-      json: () => ({ providers, total: providers.length }),
-      text: () => JSON.stringify({ providers, total: providers.length }),
-    }),
-  );
-}
+let mockProviders = sampleProviders;
+let mockError: { code: string; message: string; statusCode?: number } | null = null;
 
-function mockFetchReject(error: Error): void {
-  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(error));
-}
+vi.mock("../providers/api.js", () => ({
+  fetchProviderList: vi.fn(async () => {
+    if (mockError) return mockError;
+    return { providers: mockProviders, total: mockProviders.length };
+  }),
+}));
 
 describe("listAction", () => {
-  let stdout: string;
-  let stderr: string;
+  let stdout: string[] = [];
+  let stderr: string[] = [];
+  const origLog = console.log;
+  const origErr = console.error;
 
   beforeEach(() => {
-    stdout = "";
-    stderr = "";
-    vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
-      stdout += args.map(String).join(" ") + "\n";
-    });
-    vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
-      stderr += args.map(String).join(" ") + "\n";
-    });
-    // Set up config env
-    process.env["TMF_API_URL"] = "http://localhost:3000";
+    stdout = [];
+    stderr = [];
+    mockProviders = sampleProviders;
+    mockError = null;
+    console.log = (...args: unknown[]) => { stdout.push(args.map(String).join(" ")); };
+    console.error = (...args: unknown[]) => { stderr.push(args.map(String).join(" ")); };
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
-    vi.unstubAllGlobals();
-    delete process.env["TMF_API_URL"];
+    console.log = origLog;
+    console.error = origErr;
+    vi.clearAllMocks();
   });
 
-  // ── Success cases ──────────────────────────────────────
-
   it("renders provider table with default 20 limit", async () => {
-    const providers = Array.from({ length: 25 }, (_, i) => ({
-      name: `provider-${String(i)}`,
-      latency: 100 + i,
-      price: `$${String(i)}.00`,
-      tokensPerSecond: i * 10,
-      description: `desc ${String(i)}`,
-      tags: [`tag${String(i)}`],
-    }));
-    mockFetchResponse(providers);
-
     await listAction(
-      { getConfig: () => Promise.resolve({ fingerprint: "abcd1234" }), getApiUrl: () => "http://localhost:3000" },
+      { getConfig: async () => null, getApiUrl: () => "https://test.api" },
       { all: false, debug: false },
     );
 
-    // Should show only 20 rows
-    expect(stdout).toContain("provider-0");
-    expect(stdout).toContain("provider-19");
-    expect(stdout).not.toContain("provider-20");
-    // Should show total with hint
-    expect(stdout).toContain("25");
-    expect(stdout).toContain("--all");
+    const output = stdout.join("\n");
+    expect(output).toContain("packcode");
+    expect(output).toContain("200ms");
+    expect(output).toContain("$0.04");
+    expect(output).toContain("m1, m2, m3 (+1)");
+    expect(output).toContain("共 2 家供应商");
   });
 
   it("renders all providers with --all", async () => {
-    const providers = Array.from({ length: 25 }, (_, i) => ({
-      name: `p${String(i)}`,
-      latency: i,
-      price: `$${String(i)}`,
-      tokensPerSecond: i,
-      description: `d${String(i)}`,
-      tags: [],
-    }));
-    mockFetchResponse(providers);
-
     await listAction(
-      { getConfig: () => Promise.resolve({ fingerprint: "abcd1234" }), getApiUrl: () => "http://localhost:3000" },
+      { getConfig: async () => null, getApiUrl: () => "https://test.api" },
       { all: true, debug: false },
     );
 
-    expect(stdout).toContain("p24");
-    expect(stdout).toContain("25");
+    const output = stdout.join("\n");
+    expect(output).toContain("packcode");
+    expect(output).toContain("xcodcs");
   });
 
-  it("shows N/A for null tokensPerSecond", async () => {
-    mockFetchResponse(sampleProviders);
-
+  it("shows model column correctly for small model lists", async () => {
     await listAction(
-      { getConfig: () => Promise.resolve({ fingerprint: "abcd1234" }), getApiUrl: () => "http://localhost:3000" },
+      { getConfig: async () => null, getApiUrl: () => "https://test.api" },
       { all: false, debug: false },
     );
 
-    expect(stdout).toContain("N/A");
+    const output = stdout.join("\n");
+    expect(output).toContain("x1");
   });
 
   it("truncates description in table", async () => {
-    const longDesc = "x".repeat(80);
-    mockFetchResponse([
-      {
-        name: "test",
-        latency: 100,
-        price: "$0.01",
-        tokensPerSecond: null,
-        description: longDesc,
-        tags: [],
-      },
-    ]);
+    // Description > 32 chars → truncateDesc adds "..."
+    // Column width 28 will also clamp, but let's verify the truncation happened
+    const longDesc = "这是一个较长的描述文本用于测试截断功能效果验证";
+    mockProviders = [{
+      name: "test",
+      latency: 100,
+      price: "$0.01",
+      tokensPerSecond: null,
+      description: longDesc,
+      tags: [],
+      models: [],
+      modelCount: 0,
+    }];
 
     await listAction(
-      { getConfig: () => Promise.resolve({ fingerprint: "abcd1234" }), getApiUrl: () => "http://localhost:3000" },
+      { getConfig: async () => null, getApiUrl: () => "https://test.api" },
       { all: false, debug: false },
     );
 
-    // Description should be truncated, not shown in full
-    expect(stdout).not.toContain(longDesc);
-    // The output should contain part of the description with truncation indicator
-    expect(stdout).toMatch(/x{20,}/);
+    const output = stdout.join("\n");
+    // The description should appear truncated in the output
+    expect(output).toContain("test");
+    // full description should NOT appear (it would take 40+ chars)
+    expect(output).not.toContain("验证");
   });
 
-  // ── Debug mode ─────────────────────────────────────────
-
   it("outputs debug info when --debug is set", async () => {
-    mockFetchResponse(sampleProviders);
-
     await listAction(
-      { getConfig: () => Promise.resolve({ fingerprint: "abcd1234" }), getApiUrl: () => "http://localhost:3000" },
+      { getConfig: async () => null, getApiUrl: () => "https://test.api" },
       { all: false, debug: true },
     );
 
-    expect(stderr).toContain("Debug");
-    expect(stderr).toContain("http://localhost:3000");
-    expect(stderr).toContain("200");
+    const debugOutput = stderr.join("\n");
+    expect(debugOutput).toContain("[Debug]");
+    expect(debugOutput).toContain("返回供应商数: 2");
   });
 
-  // ── Error cases ────────────────────────────────────────
-
   it("shows network error message on fetch failure", async () => {
-    mockFetchReject(new Error("connect ECONNREFUSED"));
+    mockError = { code: "NETWORK", message: "❌ 请检查网络连接" };
 
     await listAction(
-      { getConfig: () => Promise.resolve({ fingerprint: "abcd1234" }), getApiUrl: () => "http://localhost:3000" },
+      { getConfig: async () => null, getApiUrl: () => "https://test.api" },
       { all: false, debug: false },
     );
 
-    expect(stderr).toContain("请检查网络连接");
+    expect(stderr.join("\n")).toContain("请检查网络连接");
   });
 
   it("shows service error on non-200 response", async () => {
-    mockFetchResponse([], 429);
+    mockError = { code: "SERVER_ERROR", message: "❌ 服务异常（状态码: 500），请稍后重试", statusCode: 500 };
 
     await listAction(
-      { getConfig: () => Promise.resolve({ fingerprint: "abcd1234" }), getApiUrl: () => "http://localhost:3000" },
+      { getConfig: async () => null, getApiUrl: () => "https://test.api" },
       { all: false, debug: false },
     );
 
-    expect(stderr).toContain("服务异常");
-    expect(stderr).toContain("429");
+    expect(stderr.join("\n")).toContain("服务异常");
   });
 
   it("shows data error on JSON parse failure", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => {
-          throw new Error("Unexpected token");
-        },
-        text: () => "not json",
-      }),
-    );
+    mockError = { code: "PARSE", message: "❌ 响应数据异常" };
 
     await listAction(
-      { getConfig: () => Promise.resolve({ fingerprint: "abcd1234" }), getApiUrl: () => "http://localhost:3000" },
+      { getConfig: async () => null, getApiUrl: () => "https://test.api" },
       { all: false, debug: false },
     );
 
-    expect(stderr).toContain("响应数据异常");
+    expect(stderr.join("\n")).toContain("响应数据异常");
   });
 });

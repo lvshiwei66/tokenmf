@@ -1,9 +1,22 @@
-export interface ProviderInfo {
+export interface ProviderListItem {
   name: string;
+  latency: number;
+  price: string;
+  tokensPerSecond: number | null;
+  description: string;
+  tags: string[];
+  models: string[];
+  modelCount: number;
+}
+
+export interface ProviderDetail {
+  name: string;
+  intro: string;
+  website: string;
   baseUrl: string;
   defaultModel: string;
   models: string[];
-  intro: string;
+  updated_at: string;
 }
 
 export interface UseParams {

@@ -6,9 +6,9 @@ import {
   getProviderMemory,
   setProviderMemory,
 } from "../config/settings.js";
-import { queryProvider } from "../providers/ask.js";
+import { fetchProviderInfo } from "../providers/api.js";
 import { getAppfit } from "../appfits/index.js";
-import type { UseParams, ProviderInfo } from "../types/provider.js";
+import type { UseParams, ProviderDetail } from "../types/provider.js";
 import type { AppConfig } from "../detectors/types.js";
 
 async function promptHidden(prompt: string): Promise<string> {
@@ -53,9 +53,11 @@ async function promptHidden(prompt: string): Promise<string> {
 function resolveModel(
   cliModel: string | undefined,
   memoryModel: string | undefined,
+  defaultModel: string,
 ): string | undefined {
   if (cliModel) return cliModel;
   if (memoryModel) return memoryModel;
+  if (defaultModel) return defaultModel;
   return undefined;
 }
 
@@ -93,6 +95,8 @@ function selectApp(
 export async function useCommand(
   provider: string,
   options: { key?: string; model?: string; app?: string },
+  apiUrl: string,
+  clientId?: string,
 ): Promise<void> {
   // 1. Load settings and provider memory
   const settings = await loadSettings();
@@ -117,7 +121,7 @@ export async function useCommand(
   }
 
   // 3. Resolve providerInfo: memory has baseUrl → use it; otherwise ask API
-  let providerInfo: ProviderInfo | undefined;
+  let providerInfo: ProviderDetail | undefined;
   if (memory?.baseUrl) {
     providerInfo = {
       name: provider,
@@ -125,17 +129,20 @@ export async function useCommand(
       defaultModel: memory.model ?? "",
       models: [],
       intro: "",
+      website: "",
+      updated_at: "",
     };
   } else {
-    try {
-      providerInfo = await queryProvider(provider);
-    } catch {
-      throw new Error(`无法获取 Provider "${provider}" 的信息。`);
+    const cid = clientId ?? "unknown";
+    const result = await fetchProviderInfo(apiUrl, cid, provider);
+    if ("code" in result) {
+      throw new Error(`无法获取 Provider "${provider}" 的信息。${result.message}`);
     }
+    providerInfo = result;
   }
 
   // 4. Resolve model
-  const model = resolveModel(options.model, memory?.model);
+  const model = resolveModel(options.model, memory?.model, providerInfo.defaultModel);
 
   // 5. Detect and select app
   const apps = detectAllApps();

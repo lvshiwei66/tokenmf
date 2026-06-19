@@ -9,6 +9,11 @@ export interface CliConfig {
   apiUrl?: string;
 }
 
+export interface ConfigProvider {
+  getConfig: () => Promise<CliConfig | null>;
+  getApiUrl: (config: CliConfig | null) => string;
+}
+
 const DEFAULT_API_URL = "https://api.tokenmofang.com";
 
 export const CONFIG_DIR = join(homedir(), ".tokenmofang");

@@ -1,24 +1,7 @@
 import Table from "cli-table3";
-import type { CliConfig } from "../config.js";
-
-export interface Provider {
-  name: string;
-  latency: number;
-  price: string;
-  tokensPerSecond: number | null;
-  description: string;
-  tags: string[];
-}
-
-interface ApiResponse {
-  providers: Provider[];
-  total: number;
-}
-
-export interface ConfigProvider {
-  getConfig: () => Promise<CliConfig | null>;
-  getApiUrl: (config: CliConfig | null) => string;
-}
+import type { ConfigProvider } from "../config.js";
+import { fetchProviderList } from "../providers/api.js";
+import type { ProviderListItem } from "../types/provider.js";
 
 export interface ListOptions {
   all: boolean;
@@ -34,22 +17,32 @@ function truncateDesc(desc: string, maxLen: number): string {
   return chars.slice(0, maxLen).join("") + "...";
 }
 
-function formatTable(providers: Provider[], total: number, all: boolean): string {
+function formatModels(models: string[], modelCount: number): string {
+  const shown = models.slice(0, 3);
+  const remaining = modelCount - shown.length;
+  let result = shown.join(", ");
+  if (remaining > 0) {
+    result += ` (+${String(remaining)})`;
+  }
+  return result;
+}
+
+function formatTable(items: ProviderListItem[], total: number, all: boolean): string {
   const table = new Table({
-    head: ["名称", "延迟", "价格", "速率", "描述", "标签"],
+    head: ["名称", "延迟", "价格", "模型", "描述", "标签"],
     style: { head: [], border: [] },
-    colWidths: [20, 10, 12, 10, 34, 20],
+    colWidths: [16, 10, 10, 30, 28, 18],
     wordWrap: false,
   });
 
-  const rows = all ? providers : providers.slice(0, DEFAULT_LIMIT);
+  const rows = all ? items : items.slice(0, DEFAULT_LIMIT);
 
   for (const p of rows) {
     table.push([
       p.name,
       `${String(p.latency)}ms`,
       p.price,
-      p.tokensPerSecond != null ? `${String(p.tokensPerSecond)}t/s` : "N/A",
+      formatModels(p.models, p.modelCount),
       truncateDesc(p.description, TABLE_DESC_MAX),
       p.tags.join(", "),
     ]);
@@ -73,59 +66,30 @@ export async function listAction(
   const config = await configProvider.getConfig();
   const apiUrl = configProvider.getApiUrl(config);
   const fingerprint = config?.fingerprint ?? "unknown";
-  const url = `${apiUrl}/api/v1/providers`;
   const startedAt = Date.now();
 
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      headers: { "x-client-id": fingerprint },
-    });
-  } catch (err) {
+  const result = await fetchProviderList(apiUrl, fingerprint);
+
+  if ("code" in result) {
     if (options.debug) {
-      console.error(`[Debug] 请求 URL: ${url}`);
-      console.error(`[Debug] 错误: ${String(err)}`);
+      console.error(`[Debug] 请求 URL: ${apiUrl}/api/v1/providers`);
+      console.error(`[Debug] 错误码: ${result.code}`);
+      if (result.statusCode != null) {
+        console.error(`[Debug] 状态码: ${String(result.statusCode)}`);
+      }
     }
-    console.error("❌ 请检查网络连接");
+    console.error(result.message);
     return;
   }
 
   const elapsed = Date.now() - startedAt;
 
-  if (!res.ok) {
-    if (options.debug) {
-      console.error(`[Debug] 请求 URL: ${url}`);
-      console.error(`[Debug] 状态码: ${String(res.status)}`);
-      console.error(`[Debug] 耗时: ${String(elapsed)}ms`);
-      try {
-        const body = await res.text();
-        console.error(`[Debug] 响应体: ${body}`);
-      } catch { /* ignore */ }
-    }
-    console.error(`❌ 服务异常（状态码: ${String(res.status)}），请稍后重试`);
-    return;
-  }
-
-  let data: ApiResponse;
-  try {
-    data = (await res.json()) as ApiResponse;
-  } catch {
-    if (options.debug) {
-      console.error(`[Debug] 请求 URL: ${url}`);
-      console.error(`[Debug] 状态码: ${String(res.status)}`);
-      console.error(`[Debug] 耗时: ${String(elapsed)}ms`);
-    }
-    console.error("❌ 响应数据异常");
-    return;
-  }
-
   if (options.debug) {
-    console.error(`[Debug] 请求 URL: ${url}`);
-    console.error(`[Debug] 状态码: ${String(res.status)}`);
+    console.error(`[Debug] 请求 URL: ${apiUrl}/api/v1/providers`);
     console.error(`[Debug] 耗时: ${String(elapsed)}ms`);
-    console.error(`[Debug] 返回供应商数: ${String(data.total)}`);
+    console.error(`[Debug] 返回供应商数: ${String(result.total)}`);
   }
 
-  const output = formatTable(data.providers, data.total, options.all);
+  const output = formatTable(result.providers, result.total, options.all);
   console.log(output);
 }
