@@ -19,6 +19,10 @@ export const openclawAppfit: Appfit = {
     return [join(appPath, "config.yaml")];
   },
 
+  requiredProtocol(): "openai" | "anthropic" | undefined {
+    return undefined;
+  },
+
   async apply(appPath: string, params: UseParams): Promise<void> {
     const configPath = join(appPath, "config.yaml");
     const raw = await readFile(configPath, "utf-8");

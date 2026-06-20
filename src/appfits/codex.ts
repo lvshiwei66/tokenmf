@@ -11,6 +11,10 @@ export const codexAppfit: Appfit = {
     return [join(appPath, "config.toml"), join(appPath, "auth.json")];
   },
 
+  requiredProtocol(): "openai" | "anthropic" | undefined {
+    return "openai";
+  },
+
   async apply(appPath: string, params: UseParams): Promise<void> {
     const configPath = join(appPath, "config.toml");
     const authPath = join(appPath, "auth.json");

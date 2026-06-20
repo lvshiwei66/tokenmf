@@ -5,7 +5,7 @@ import { homedir } from "node:os";
 export interface ProviderMemory {
   apiKey: string;
   model?: string;
-  baseUrl: string;
+  urls: Record<string, string>;
 }
 
 export interface Settings {

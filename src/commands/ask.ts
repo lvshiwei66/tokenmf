@@ -32,7 +32,9 @@ export async function askAction(
   const intro = d.intro ? `  简介：${d.intro}` : "";
   const website = d.website ? `  网址：${d.website}` : "";
   const defaultModel = d.defaultModel ? `  默认模型：${d.defaultModel}` : "";
-  const baseUrl = d.baseUrl ? `  API 地址：${d.baseUrl}` : "";
+  const urlLines = d.urls && Object.keys(d.urls).length > 0
+    ? Object.entries(d.urls).map(([proto, url]) => `  API 地址 (${proto})：${url}`)
+    : ["  API 地址：未配置"];
   const models = d.models.length > 0 ? `  可用模型：${d.models.join(", ")}` : "";
   const updated = d.updated_at ? `  数据更新：${d.updated_at}` : "";
 
@@ -42,7 +44,7 @@ export async function askAction(
     intro,
     website,
     defaultModel,
-    baseUrl,
+    ...urlLines,
     models,
     updated,
   ].filter((l) => l !== "");

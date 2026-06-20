@@ -28,15 +28,17 @@ async function promptHidden(prompt: string): Promise<string> {
           resolve(answer.trim());
           return;
         }
-        if (char === "\x7f") {
+        if (char === "\x7f" || char === "\b") {
           // backspace
           if (answer.length > 0) {
             answer = answer.slice(0, -1);
+            stdout.write("\b \b");
           }
           continue;
         }
         if (char >= " ") {
           answer += char;
+          stdout.write("*");
         }
       }
     };
@@ -44,8 +46,10 @@ async function promptHidden(prompt: string): Promise<string> {
     const cleanup = () => {
       stdin.removeListener("data", onData);
       if (!wasRaw) stdin.setRawMode(false);
+      stdin.pause();
     };
 
+    stdin.resume();
     stdin.on("data", onData);
   });
 }
@@ -120,12 +124,12 @@ export async function useCommand(
     throw new Error("未提供 API Key，操作取消。");
   }
 
-  // 3. Resolve providerInfo: memory has baseUrl → use it; otherwise ask API
+  // 3. Resolve providerInfo: memory has urls → use it; otherwise ask API
   let providerInfo: ProviderDetail | undefined;
-  if (memory?.baseUrl) {
+  if (memory?.urls) {
     providerInfo = {
       name: provider,
-      baseUrl: memory.baseUrl,
+      urls: memory.urls,
       defaultModel: memory.model ?? "",
       models: [],
       intro: "",
@@ -154,6 +158,14 @@ export async function useCommand(
     throw new Error(`不支持的应用：${app.name}`);
   }
 
+
+  // 6.5 Resolve URL from urls map
+  const protocol = appfit.requiredProtocol() ?? "default";
+  const resolvedUrl = providerInfo.urls[protocol] ?? providerInfo.urls["default"];
+  if (!resolvedUrl) {
+    throw new Error(`Provider "${provider}" 缺少 "${protocol}" 协议的 URL。`);
+  }
+
   // 7. Backup config files
   const configPaths = appfit.resolveConfigPaths(app.path);
   console.log("⏳ 正在备份设置...");
@@ -168,7 +180,7 @@ export async function useCommand(
   // 8. Apply
   const params: UseParams = {
     provider,
-    baseUrl: providerInfo.baseUrl,
+    baseUrl: resolvedUrl,
     apiKey,
     model,
   };
@@ -185,7 +197,7 @@ export async function useCommand(
   const updatedMemory = {
     apiKey,
     model: model ?? undefined,
-    baseUrl: providerInfo.baseUrl,
+    urls: providerInfo.urls,
   };
   setProviderMemory(settings, provider, updatedMemory);
   await saveSettings(settings);

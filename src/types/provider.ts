@@ -13,7 +13,7 @@ export interface ProviderDetail {
   name: string;
   intro: string;
   website: string;
-  baseUrl: string;
+  urls: Record<string, string>;
   defaultModel: string;
   models: string[];
   updated_at: string;

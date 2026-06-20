@@ -49,10 +49,14 @@ import { saveSettings } from "../config/settings.js";
 
 const mockProviderInfos: Record<
   string,
-  { baseUrl: string; defaultModel: string; models: string[]; intro: string; website: string; updated_at: string }
+  { urls: Record<string, string>; defaultModel: string; models: string[]; intro: string; website: string; updated_at: string }
 > = {
   packcode: {
-    baseUrl: "https://api.deepseek.com/openai",
+    urls: {
+      default: "https://api.deepseek.com",
+      openai: "https://api.deepseek.com/v1",
+      anthropic: "https://api.deepseek.com/anthropic",
+    },
     defaultModel: "deepseek-v4-pro",
     models: ["deepseek-v4-pro"],
     intro: "深度求索",
@@ -60,7 +64,10 @@ const mockProviderInfos: Record<
     updated_at: "2026年6月19日 16:30",
   },
   openai: {
-    baseUrl: "https://api.openai.com/v1",
+    urls: {
+      default: "https://api.openai.com/v1",
+      openai: "https://api.openai.com/v1",
+    },
     defaultModel: "gpt-5.1",
     models: ["gpt-5.1", "gpt-5.1-mini"],
     intro: "OpenAI GPT",
@@ -238,10 +245,11 @@ describe("use command — E2E", () => {
       writeFileSync(
         join(appDir, "settings.json"),
         JSON.stringify({
-          provider: "anthropic",
-          model: "claude-sonnet-4-20250514",
-          apiKey: "sk-old",
-          baseUrl: "https://api.anthropic.com",
+          env: {
+            ANTHROPIC_AUTH_TOKEN: "sk-old",
+            ANTHROPIC_BASE_URL: "https://api.anthropic.com",
+            ANTHROPIC_MODEL: "claude-sonnet-4-20250514",
+          },
           otherSetting: "keep-me",
         }),
       );
@@ -264,10 +272,10 @@ describe("use command — E2E", () => {
         const result = JSON.parse(
           readFileSync(join(appDir, "settings.json"), "utf-8"),
         ) as Record<string, unknown>;
-        expect(result.provider).toBe("packcode");
-        expect(result.baseUrl).toBe("https://api.deepseek.com/openai");
-        expect(result.apiKey).toBe("sk-test-key");
-        expect(result.model).toBe("deepseek-v4-pro");
+        const env = result.env as Record<string, unknown>;
+        expect(env.ANTHROPIC_AUTH_TOKEN).toBe("sk-test-key");
+        expect(env.ANTHROPIC_BASE_URL).toBe("https://api.deepseek.com/anthropic");
+        expect(env.ANTHROPIC_MODEL).toBe("deepseek-v4-pro");
         expect(result.otherSetting).toBe("keep-me");
 
         // Success message
@@ -292,7 +300,8 @@ describe("use command — E2E", () => {
       const result = JSON.parse(
         readFileSync(join(appDir, "settings.json"), "utf-8"),
       ) as Record<string, unknown>;
-      expect(result.model).toBe("deepseek-v4-pro");
+      const env = result.env as Record<string, unknown>;
+      expect(env.ANTHROPIC_MODEL).toBe("deepseek-v4-pro");
     });
 
     it("overrides model when --model provided from CLI", async () => {
@@ -305,7 +314,8 @@ describe("use command — E2E", () => {
       const result = JSON.parse(
         readFileSync(join(appDir, "settings.json"), "utf-8"),
       ) as Record<string, unknown>;
-      expect(result.model).toBe("custom-model-cli");
+      const env = result.env as Record<string, unknown>;
+      expect(env.ANTHROPIC_MODEL).toBe("custom-model-cli");
     });
   });
 
@@ -402,7 +412,7 @@ describe("use command — E2E", () => {
           packcode: {
             apiKey: "sk-memory-key",
             model: "deepseek-v4-pro",
-            baseUrl: "https://api.deepseek.com/openai",
+            urls: { default: "https://api.deepseek.com/v1", openai: "https://api.deepseek.com/v1", anthropic: "https://api.deepseek.com/anthropic" },
           },
         },
       };
@@ -411,13 +421,13 @@ describe("use command — E2E", () => {
       try {
         await useCommand("packcode", { app: "codex" }, TEST_API_URL, TEST_CLIENT_ID);
 
-        // Should use memory key, NOT call ask API (because baseUrl is in memory)
+        // Should use memory key, NOT call ask API (because urls is in memory)
         const auth = JSON.parse(
           readFileSync(join(appDir, "auth.json"), "utf-8"),
         ) as Record<string, unknown>;
         expect(auth.OPENAI_API_KEY).toBe("sk-memory-key");
 
-        // ask should NOT have been called (baseUrl cached in memory)
+        // ask should NOT have been called (urls cached in memory)
         expect(fetchProviderInfo).not.toHaveBeenCalled();
 
         // Success message should still appear
@@ -434,7 +444,7 @@ describe("use command — E2E", () => {
           packcode: {
             apiKey: "sk-memory-key",
             model: "deepseek-v4-lite-from-memory",
-            baseUrl: "https://api.deepseek.com/openai",
+            urls: { default: "https://api.deepseek.com/v1", openai: "https://api.deepseek.com/v1", anthropic: "https://api.deepseek.com/anthropic" },
           },
         },
       };
@@ -452,7 +462,7 @@ describe("use command — E2E", () => {
           packcode: {
             apiKey: "sk-memory-key",
             model: "memory-model",
-            baseUrl: "https://api.deepseek.com/openai",
+            urls: { default: "https://api.deepseek.com/v1", openai: "https://api.deepseek.com/v1", anthropic: "https://api.deepseek.com/anthropic" },
           },
         },
       };
@@ -472,7 +482,7 @@ describe("use command — E2E", () => {
         providers: {
           packcode: {
             apiKey: "sk-old-memory-key",
-            baseUrl: "https://api.deepseek.com/openai",
+            urls: { default: "https://api.deepseek.com/v1", openai: "https://api.deepseek.com/v1", anthropic: "https://api.deepseek.com/anthropic" },
           },
         },
       };
@@ -493,7 +503,7 @@ describe("use command — E2E", () => {
       expect(mockSettings.providers["packcode"]?.apiKey).toBe("sk-new-cli-key");
     });
 
-    it("calls ask API when baseUrl not in memory", async () => {
+    it("calls ask API when urls not in memory", async () => {
       // No memory for this provider at all
       mockSettings = { providers: {} };
 
@@ -506,12 +516,12 @@ describe("use command — E2E", () => {
       expect(fetchProviderInfo).toHaveBeenCalledWith("https://test.api", "test-client-id", "packcode");
     });
 
-    it("does NOT call ask API when memory has baseUrl", async () => {
+    it("does NOT call ask API when memory has urls", async () => {
       mockSettings = {
         providers: {
           packcode: {
             apiKey: "sk-memory-key",
-            baseUrl: "https://api.deepseek.com/custom",
+            urls: { default: "https://api.deepseek.com/custom", openai: "https://api.deepseek.com/custom" },
           },
         },
       };
@@ -547,7 +557,7 @@ describe("use command — E2E", () => {
       expect(mockSettings.providers["packcode"]).toEqual({
         apiKey: "sk-test-key",
         model: "deepseek-v4-pro",
-        baseUrl: "https://api.deepseek.com/openai",
+        urls: { default: "https://api.deepseek.com", openai: "https://api.deepseek.com/v1", anthropic: "https://api.deepseek.com/anthropic" },
       });
     });
 
@@ -570,7 +580,7 @@ describe("use command — E2E", () => {
         providers: {
           openai: {
             apiKey: "sk-openai-key",
-            baseUrl: "https://api.openai.com/v1",
+            urls: { default: "https://api.openai.com/v1", openai: "https://api.openai.com/v1" },
           },
         },
       };
@@ -582,20 +592,20 @@ describe("use command — E2E", () => {
 
       expect(mockSettings.providers["openai"]).toEqual({
         apiKey: "sk-openai-key",
-        baseUrl: "https://api.openai.com/v1",
+        urls: { default: "https://api.openai.com/v1", openai: "https://api.openai.com/v1" },
       });
       expect(mockSettings.providers["packcode"]?.apiKey).toBe(
         "sk-packcode-key",
       );
     });
 
-    it("updates apiKey and model while preserving baseUrl from memory", async () => {
+    it("updates apiKey and model while preserving urls from memory", async () => {
       mockSettings = {
         providers: {
           packcode: {
             apiKey: "sk-old-key",
             model: "old-model",
-            baseUrl: "https://old-url.com",
+            urls: { default: "https://old-url.com", openai: "https://old-url.com" },
           },
         },
       };
@@ -606,11 +616,11 @@ describe("use command — E2E", () => {
         app: "codex",
       }, TEST_API_URL, TEST_CLIENT_ID);
 
-      // apiKey and model are overridden by CLI args; baseUrl from memory is preserved
+      // apiKey and model are overridden by CLI args; urls from memory is preserved
       expect(mockSettings.providers["packcode"]).toEqual({
         apiKey: "sk-new-key",
         model: "new-model",
-        baseUrl: "https://old-url.com",
+        urls: { default: "https://old-url.com", openai: "https://old-url.com" },
       });
     });
   });
@@ -832,7 +842,9 @@ describe("use command — E2E", () => {
         const result = JSON.parse(
           readFileSync(join(appDir2, "settings.json"), "utf-8"),
         ) as Record<string, unknown>;
-        expect(result.provider).toBe("openai");
+        const env = result.env as Record<string, unknown>;
+        expect(env.ANTHROPIC_AUTH_TOKEN).toBe("sk-openai-key");
+        expect(env.ANTHROPIC_MODEL).toBe("gpt-5.1-mini");
       } finally {
         restore();
       }

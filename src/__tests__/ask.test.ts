@@ -6,7 +6,7 @@ const mockDetail: ProviderDetail = {
   name: "packcode",
   intro: "深度求索 DeepSeek V4 旗舰模型。适合代码生成与推理任务。",
   website: "https://platform.deepseek.com",
-  baseUrl: "https://api.deepseek.com/openai",
+  urls: { default: "https://api.deepseek.com/openai", openai: "https://api.deepseek.com/openai" },
   defaultModel: "deepseek-v4-pro",
   models: ["deepseek-v4-pro", "deepseek-v4-lite"],
   updated_at: "2026年6月19日 16:30",
@@ -51,7 +51,7 @@ describe("askAction", () => {
     expect(output).toContain("简介：深度求索 DeepSeek V4 旗舰模型。适合代码生成与推理任务。");
     expect(output).toContain("网址：https://platform.deepseek.com");
     expect(output).toContain("默认模型：deepseek-v4-pro");
-    expect(output).toContain("API 地址：https://api.deepseek.com/openai");
+    expect(output).toContain("API 地址 (default)：https://api.deepseek.com/openai");
     expect(output).toContain("可用模型：deepseek-v4-pro, deepseek-v4-lite");
     expect(output).toContain("数据更新：2026年6月19日 16:30");
   });
@@ -107,7 +107,7 @@ describe("askAction", () => {
       name: "minimal",
       intro: "",
       website: "",
-      baseUrl: "",
+      urls: {},
       defaultModel: "",
       models: [],
       updated_at: "",

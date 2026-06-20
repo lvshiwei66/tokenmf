@@ -112,12 +112,13 @@ describe("Claude Code Appfit", () => {
     expect(paths).toEqual([join(tmpDir, "settings.json")]);
   });
 
-  it("rewrites settings.json with provider settings", async () => {
+  it("rewrites settings.json env block with provider settings", async () => {
     const settings = JSON.stringify({
-      provider: "anthropic",
-      model: "claude-sonnet-4-20250514",
-      apiKey: "sk-old",
-      baseUrl: "https://api.anthropic.com",
+      env: {
+        ANTHROPIC_AUTH_TOKEN: "sk-old",
+        ANTHROPIC_BASE_URL: "https://api.anthropic.com",
+        ANTHROPIC_MODEL: "claude-sonnet-4-20250514",
+      },
       otherSetting: "keep-me",
     });
     writeFileSync(join(tmpDir, "settings.json"), settings);
@@ -127,17 +128,22 @@ describe("Claude Code Appfit", () => {
     const result = JSON.parse(
       readFileSync(join(tmpDir, "settings.json"), "utf-8"),
     ) as Record<string, unknown>;
-    expect(result.provider).toBe("packcode");
-    expect(result.model).toBe("deepseek-v4-pro");
-    expect(result.apiKey).toBe("sk-test-key-123");
-    expect(result.baseUrl).toBe("https://api.deepseek.com/openai");
+    const env = result.env as Record<string, unknown>;
+    expect(env.ANTHROPIC_AUTH_TOKEN).toBe("sk-test-key-123");
+    expect(env.ANTHROPIC_BASE_URL).toBe("https://api.deepseek.com/openai");
+    expect(env.ANTHROPIC_MODEL).toBe("deepseek-v4-pro");
     expect(result.otherSetting).toBe("keep-me");
   });
 
-  it("does not change model when not provided", async () => {
+  it("does not set ANTHROPIC_MODEL when model not provided", async () => {
     writeFileSync(
       join(tmpDir, "settings.json"),
-      JSON.stringify({ provider: "anthropic", model: "claude-sonnet-4-20250514" }),
+      JSON.stringify({
+        env: {
+          ANTHROPIC_AUTH_TOKEN: "sk-old",
+          ANTHROPIC_MODEL: "claude-sonnet-4-20250514",
+        },
+      }),
     );
 
     await claudeCodeAppfit.apply(tmpDir, useParams({ model: undefined }));
@@ -145,7 +151,50 @@ describe("Claude Code Appfit", () => {
     const result = JSON.parse(
       readFileSync(join(tmpDir, "settings.json"), "utf-8"),
     ) as Record<string, unknown>;
-    expect(result.model).toBe("claude-sonnet-4-20250514");
+    const env = result.env as Record<string, unknown>;
+    expect(env.ANTHROPIC_MODEL).toBe("claude-sonnet-4-20250514");
+  });
+
+  it("creates env block if it does not exist", async () => {
+    writeFileSync(
+      join(tmpDir, "settings.json"),
+      JSON.stringify({ otherSetting: "keep-me" }),
+    );
+
+    await claudeCodeAppfit.apply(tmpDir, useParams());
+
+    const result = JSON.parse(
+      readFileSync(join(tmpDir, "settings.json"), "utf-8"),
+    ) as Record<string, unknown>;
+    const env = result.env as Record<string, unknown>;
+    expect(env.ANTHROPIC_AUTH_TOKEN).toBe("sk-test-key-123");
+    expect(env.ANTHROPIC_BASE_URL).toBe("https://api.deepseek.com/openai");
+    expect(result.otherSetting).toBe("keep-me");
+  });
+
+  it("cleans up stale top-level provider keys from prior buggy runs", async () => {
+    const settings = JSON.stringify({
+      provider: "anthropic",
+      apiKey: "sk-old",
+      baseUrl: "https://api.anthropic.com",
+      model: "claude-sonnet-4-20250514",
+      env: {
+        ANTHROPIC_AUTH_TOKEN: "sk-env",
+      },
+    });
+    writeFileSync(join(tmpDir, "settings.json"), settings);
+
+    await claudeCodeAppfit.apply(tmpDir, useParams());
+
+    const result = JSON.parse(
+      readFileSync(join(tmpDir, "settings.json"), "utf-8"),
+    ) as Record<string, unknown>;
+    expect(result.provider).toBeUndefined();
+    expect(result.apiKey).toBeUndefined();
+    expect(result.baseUrl).toBeUndefined();
+    expect(result.model).toBeUndefined();
+    const env = result.env as Record<string, unknown>;
+    expect(env.ANTHROPIC_AUTH_TOKEN).toBe("sk-test-key-123");
   });
 });
 

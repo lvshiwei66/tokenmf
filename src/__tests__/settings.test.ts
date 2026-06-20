@@ -38,7 +38,7 @@ describe("Settings persistence", () => {
         packcode: {
           apiKey: "sk-test",
           model: "deepseek-v4-pro",
-          baseUrl: "https://api.deepseek.com/openai",
+          urls: { default: "https://api.deepseek.com/openai", openai: "https://api.deepseek.com/openai" },
         },
       },
     };
@@ -57,7 +57,7 @@ describe("Settings persistence", () => {
         openai: {
           apiKey: "sk-openai",
           model: "gpt-5.1",
-          baseUrl: "https://api.openai.com/v1",
+          urls: { default: "https://api.openai.com/v1", openai: "https://api.openai.com/v1" },
         },
       },
     };
@@ -65,7 +65,7 @@ describe("Settings persistence", () => {
 
     const loaded = await loadSettings();
     expect(loaded.providers.openai.apiKey).toBe("sk-openai");
-    expect(loaded.providers.openai.baseUrl).toBe("https://api.openai.com/v1");
+    expect(loaded.providers.openai.urls).toEqual({ default: "https://api.openai.com/v1", openai: "https://api.openai.com/v1" });
   });
 
   it("getProviderMemory returns undefined for unknown provider", async () => {
@@ -79,14 +79,14 @@ describe("Settings persistence", () => {
         packcode: {
           apiKey: "sk-test",
           model: "deepseek-v4-pro",
-          baseUrl: "https://api.deepseek.com/openai",
+          urls: { default: "https://api.deepseek.com/openai", openai: "https://api.deepseek.com/openai" },
         },
       },
     };
     const memory = getProviderMemory(settings, "packcode");
     expect(memory).toBeDefined();
     expect(memory!.apiKey).toBe("sk-test");
-    expect(memory!.baseUrl).toBe("https://api.deepseek.com/openai");
+    expect(memory!.urls).toEqual({ default: "https://api.deepseek.com/openai", openai: "https://api.deepseek.com/openai" });
   });
 
   it("setProviderMemory adds new provider", () => {
@@ -94,7 +94,7 @@ describe("Settings persistence", () => {
     setProviderMemory(settings, "newprov", {
       apiKey: "sk-new",
       model: "test-model",
-      baseUrl: "https://new.api.com",
+      urls: { default: "https://new.api.com" },
     });
     expect(settings.providers["newprov"].apiKey).toBe("sk-new");
   });
@@ -104,14 +104,14 @@ describe("Settings persistence", () => {
       providers: {
         packcode: {
           apiKey: "sk-old",
-          baseUrl: "https://old.api.com",
+          urls: { default: "https://old.api.com" },
         },
       },
     };
     setProviderMemory(settings, "packcode", {
       apiKey: "sk-new",
       model: "new-model",
-      baseUrl: "https://new.api.com",
+      urls: { default: "https://new.api.com" },
     });
     expect(settings.providers["packcode"].apiKey).toBe("sk-new");
     expect(settings.providers["packcode"].model).toBe("new-model");
