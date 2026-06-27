@@ -7,6 +7,7 @@ import { listAction } from "./commands/list.js";
 import { askAction } from "./commands/ask.js";
 import { useCommand } from "./commands/use.js";
 import { rollbackCommand } from "./commands/rollback.js";
+import { registerTestCommand } from "./commands/test.js";
 import { getConfig, getApiUrl, CONFIG_PATH, loadSettings } from "./config/index.js";
 
 export function createProgram(): Command {
@@ -103,6 +104,9 @@ export function createProgram(): Command {
         process.exit(1);
       }
     });
+  // ── test ─────────────────────────────────────────────────────
+  registerTestCommand(program);
+
 
   return program;
 }
