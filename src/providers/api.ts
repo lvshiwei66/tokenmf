@@ -1,4 +1,5 @@
 import type { ProviderListItem, ProviderDetail } from "../types/provider.js";
+import { getClientId } from "../utils/fingerprint.js";
 
 export interface ApiError {
   code: "NETWORK" | "NOT_FOUND" | "RATE_LIMITED" | "SERVER_ERROR" | "PARSE";
@@ -8,8 +9,9 @@ export interface ApiError {
 
 async function doFetch(
   url: string,
-  clientId: string,
+  rawClientId: string,
 ): Promise<Response> {
+  const clientId = getClientId(rawClientId);
   return fetch(url, {
     headers: { "x-client-id": clientId },
   });

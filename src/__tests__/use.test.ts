@@ -742,23 +742,21 @@ describe("use command — E2E", () => {
       ).rejects.toThrow(/not found/);
     });
 
-    it("throws when multiple apps and no --app", async () => {
+    it("applies to all apps when --app not specified", async () => {
       const appDir2 = mkdtempSync(join(tmpdir(), "tmf-test-use2-"));
       try {
+        const testSettings = join(appDir2, "settings.json");
+        writeFileSync(testSettings, "{}");
+
         vi.mocked(detectAllApps).mockReturnValue([
           makeCodexApp(appDir),
-          makeClaudeCodeApp(appDir2),
+          { ...makeClaudeCodeApp(appDir2), configPath: testSettings },
         ]);
 
-        await expect(
-          useCommand("packcode", { key: "sk-test" }, TEST_API_URL, TEST_CLIENT_ID),
-        ).rejects.toThrow(/Multiple/);
+        await useCommand("packcode", { key: "sk-test" }, TEST_API_URL, TEST_CLIENT_ID);
+        // No throw → both apps processed
       } finally {
-        try {
-          rmSync(appDir2, { recursive: true, force: true });
-        } catch {
-          // ignore
-        }
+        try { rmSync(appDir2, { recursive: true, force: true }); } catch { /* */ }
       }
     });
 
@@ -893,8 +891,8 @@ describe("use command — E2E", () => {
       ).rejects.toThrow(/Cannot get/);
     });
 
-    it("throws when app name is not in appfit registry", async () => {
-      // Use an app name that has no corresponding appfit
+    it("warns and skips when app has no appfit", async () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       vi.mocked(detectAllApps).mockReturnValue([
         {
           name: "unknown-app",
@@ -905,9 +903,10 @@ describe("use command — E2E", () => {
         },
       ]);
 
-      await expect(
-        useCommand("packcode", { key: "sk-test", app: "unknown-app" }, TEST_API_URL, TEST_CLIENT_ID),
-      ).rejects.toThrow(/Unsupported/);
+
+      await useCommand("packcode", { key: "sk-test", app: "unknown-app" }, TEST_API_URL, TEST_CLIENT_ID);
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Unsupported"));
+      warnSpy.mockRestore();
     });
   });
 

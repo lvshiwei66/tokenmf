@@ -16,9 +16,9 @@ export function createProgram(): Command {
   program
     .name("tmf")
     .description("TokenMofang – Spin up any LLM provider in one CLI command.")
-    .version("0.1.0")
-    .option("-d, --debug", "Output debug information");
-
+    .version(`0.1.0\nTMF_API_URL: ${getApiUrl(null)}`)
+    .option("-d, --debug", "Output debug information")
+    .addHelpText("after", `\nEnvironment:\n  TMF_API_URL  ${getApiUrl(null)}\n`);
   // ── use ─────────────────────────────────────────────────────
   program
     .command("use <provider>")
@@ -31,7 +31,7 @@ export function createProgram(): Command {
         const config = await getConfig(CONFIG_PATH);
         const apiUrl = getApiUrl(config);
         const settings = await loadSettings();
-        const clientId = settings.clientId;
+        const clientId = config?.fingerprint;
         await useCommand(provider, options, apiUrl, clientId);
       } catch (error) {
         console.error(
@@ -52,7 +52,7 @@ export function createProgram(): Command {
       // Auto-run setup if config is missing
       let config = await getConfig(CONFIG_PATH);
       if (!config) {
-        console.log("🔧 No config detected, auto-running setup...\n");
+        console.log("Setting up...\n");
         await setup();
         config = await getConfig(CONFIG_PATH);
       }
@@ -74,7 +74,7 @@ export function createProgram(): Command {
       // Auto-run setup if config is missing
       let config = await getConfig(CONFIG_PATH);
       if (!config) {
-        console.log("🔧 No config detected, auto-running setup...\n");
+        console.log("Setting up...\n");
         await setup();
         config = await getConfig(CONFIG_PATH);
       }

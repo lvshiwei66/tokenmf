@@ -116,7 +116,7 @@ export async function useCommand(
       `Enter API Key for ${provider}${currentHint} (input hidden): `;
     apiKey = await promptHidden(prompt);
     if (!apiKey && memory?.apiKey) {
-      apiKey = memory.apiKey; // Enter pressed, keep existing
+      apiKey = memory.apiKey;
     }
   }
 
@@ -124,7 +124,7 @@ export async function useCommand(
     throw new Error("No API Key provided, operation cancelled.");
   }
 
-  // 3. Resolve providerInfo: memory has urls → use it; otherwise ask API
+  // 3. Resolve providerInfo
   let providerInfo: ProviderDetail | undefined;
   if (memory?.urls) {
     providerInfo = {
@@ -148,54 +148,63 @@ export async function useCommand(
   // 4. Resolve model
   const model = resolveModel(options.model, memory?.model, providerInfo.defaultModel);
 
-  // 5. Detect and select app
-  const apps = detectAllApps();
-  const app = selectApp(options.app, apps);
+  // 5. Determine target apps
+  const allApps = detectAllApps();
+  const targets: AppConfig[] = options.app
+    ? [selectApp(options.app, allApps)]
+    : allApps;
 
-  // 6. Load Appfit
-  const appfit = getAppfit(app.name);
-  if (!appfit) {
-    throw new Error(`Unsupported application: ${app.name}`);
+  if (targets.length === 0) {
+    throw new Error("No installed applications detected. Please install an AI application first.");
   }
 
-
-  // 6.5 Resolve URL from urls map
-  const protocol = appfit.requiredProtocol() ?? "default";
-  const resolvedUrl = providerInfo.urls[protocol] ?? providerInfo.urls["default"];
-  if (!resolvedUrl) {
-    throw new Error(`Provider "${provider}" missing URL for "${protocol}" protocol.`);
-  }
-
-  // 7. Backup config files
-  const configPaths = appfit.resolveConfigPaths(app.path);
-  console.log("⏳ Backing up settings...");
-  for (const configPath of configPaths) {
-    try {
-      await copyFile(configPath, configPath + ".bak");
-    } catch (e: unknown) {
-      const code = (e as NodeJS.ErrnoException)?.code;
-      if (code !== "ENOENT") throw e;
-      // File may not exist (e.g., auth.json for Codex); skip
+  // 6. Apply to each target app
+  for (const app of targets) {
+    const appfit = getAppfit(app.name);
+    if (!appfit) {
+      console.warn(`⚠ Unsupported application: ${app.name}, skipped.`);
+      continue;
     }
+
+    const protocol = appfit.requiredProtocol() ?? "default";
+    const resolvedUrl = providerInfo.urls[protocol] ?? providerInfo.urls["default"];
+    if (!resolvedUrl) {
+      console.warn(`⚠ Provider "${provider}" missing URL for "${protocol}" protocol, skipped ${app.name}.`);
+      continue;
+    }
+
+    // Backup
+    const configPaths = appfit.resolveConfigPaths(app.path);
+    for (const configPath of configPaths) {
+      try {
+        await copyFile(configPath, configPath + ".bak");
+      } catch (e: unknown) {
+        const code = (e as NodeJS.ErrnoException)?.code;
+        if (code !== "ENOENT") throw e;
+      }
+    }
+
+    // Apply
+    const params: UseParams = {
+      provider,
+      baseUrl: resolvedUrl,
+      apiKey,
+      model,
+    };
+
+    try {
+      await appfit.apply(app.path, params);
+    } catch (error) {
+      throw new Error(
+        `Failed to modify ${app.name} config: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
+    const modelNote = model ? `, model: ${model}` : "";
+    console.log(`✅ Switched ${app.name} to ${provider}${modelNote}. Please restart the application.`);
   }
 
-  // 8. Apply
-  const params: UseParams = {
-    provider,
-    baseUrl: resolvedUrl,
-    apiKey,
-    model,
-  };
-
-  try {
-    await appfit.apply(app.path, params);
-  } catch (error) {
-    throw new Error(
-      `Failed to modify ${app.name} config: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-
-  // 9. Update memory
+  // 7. Update memory (shared across all apps)
   const updatedMemory = {
     apiKey,
     model: model ?? undefined,
@@ -203,10 +212,4 @@ export async function useCommand(
   };
   setProviderMemory(settings, provider, updatedMemory);
   await saveSettings(settings);
-
-  // 10. Success
-  const modelNote = model ? `, model: ${model}` : "";
-  console.log(
-    `✅ Switched ${app.name} to ${provider}${modelNote}. Please restart the application.`,
-  );
 }

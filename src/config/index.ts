@@ -2,7 +2,7 @@ import { readFile, writeFile, rename, mkdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
 
-export { getFingerprint } from "../utils/fingerprint.js";
+export { getFingerprint, getClientId } from "../utils/fingerprint.js";
 
 // ── Config types ─────────────────────────────────────────────
 

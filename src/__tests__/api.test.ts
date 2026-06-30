@@ -47,7 +47,7 @@ describe("providers/api", () => {
 
       expect(fetchMock).toHaveBeenCalledWith(
         "https://api.tokenmofang.com/api/v1/providers",
-        { headers: { "x-client-id": CLIENT_ID } },
+        { headers: { "x-client-id": expect.stringMatching(/^test-client-123\.[a-f0-9]{16}$/) } },
       );
     });
 

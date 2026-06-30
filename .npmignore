@@ -1,0 +1,9 @@
+src/
+__tests__/
+*.test.ts
+tsconfig.json
+tsconfig.base.json
+vitest.config.ts
+eslint.config.mjs
+node_modules/
+.gitignore

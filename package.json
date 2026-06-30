@@ -1,10 +1,35 @@
 {
   "name": "@tokenmofang/cli",
   "version": "0.1.0",
-  "private": true,
+  "description": "Token魔方 – Spin up any LLM provider in one CLI command.",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "tmf": "dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "llm",
+    "ai",
+    "provider",
+    "cli",
+    "tokenmofang",
+    "openai",
+    "anthropic",
+    "claude-code",
+    "codex",
+    "openclaw"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lvshiwei66/tokenmofang"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "scripts": {
     "build": "tsc",

@@ -1,4 +1,3 @@
-import Table from "cli-table3";
 import type { ConfigProvider } from "../config/index.js";
 import { fetchProviderList } from "../providers/api.js";
 import type { ProviderListItem } from "../types/provider.js";
@@ -8,7 +7,6 @@ export interface ListOptions {
   debug: boolean;
 }
 
-const TABLE_DESC_MAX = 32;
 const DEFAULT_LIMIT = 20;
 
 function truncateDesc(desc: string, maxLen: number): string {
@@ -18,42 +16,50 @@ function truncateDesc(desc: string, maxLen: number): string {
 }
 
 function formatModels(models: string[], modelCount: number): string {
-  const shown = models.slice(0, 3);
-  const remaining = modelCount - shown.length;
+  const MAX_MODEL_LEN = 10;
+  const trunc = (m: string) => m.length > MAX_MODEL_LEN ? m.slice(0, MAX_MODEL_LEN) + "…" : m;
+  const shown = models.slice(0, 2).map(trunc);
   let result = shown.join(", ");
-  if (remaining > 0) {
-    result += ` (+${String(remaining)})`;
+  if (modelCount > 2) {
+    result += ` (+${String(modelCount)})`;
   }
   return result;
 }
 
-function formatTable(items: ProviderListItem[], total: number, all: boolean): string {
-  const table = new Table({
-    head: ["Name", "Latency", "Price", "Models", "Description", "Tags"],
-    style: { head: [], border: [], compact: true },
-    colWidths: [16, 10, 10, 30, 28, 18],
-    wordWrap: false,
-  });
+const COLS = { name: 10, models: 32, desc: 32, tags: 24 } as const;
 
+function pad(text: string, width: number): string {
+  const chars = Array.from(text);
+  if (chars.length > width) return chars.slice(0, width - 1).join("") + "…";
+  return text.padEnd(width);
+}
+
+function formatTable(items: ProviderListItem[], total: number, all: boolean): string {
   const rows = all ? items : items.slice(0, DEFAULT_LIMIT);
 
+  const header =
+    pad("Name", COLS.name) + " " +
+    pad("Models", COLS.models) + " " +
+    pad("Description", COLS.desc) + " " +
+    pad("Tags", COLS.tags);
+
+  const lines = [header];
+
   for (const p of rows) {
-    table.push([
-      p.name,
-      p.latency != null ? `${String(p.latency)}ms` : "N/A",
-      p.price,
-      formatModels(p.models, p.modelCount),
-      truncateDesc(p.description, TABLE_DESC_MAX),
-      p.tags.join(", "),
-    ]);
+    lines.push(
+      pad(p.name, COLS.name) + " " +
+      pad(formatModels(p.models, p.modelCount), COLS.models) + " " +
+      pad(truncateDesc(p.description, COLS.desc), COLS.desc) + " " +
+      pad(p.tags.join(", "), COLS.tags),
+    );
   }
 
-  let output = table.toString();
+  let output = lines.join("\n");
 
   if (!all && total > DEFAULT_LIMIT) {
-    output += `\n${String(total)} provider(s) total. Use --all to show all`;
+    output += `\n---\n${String(total)} provider(s) total. Use --all to show all`;
   } else {
-    output += `\n${String(total)} provider(s) total`;
+    output += `\n---\n${String(total)} provider(s) total`;
   }
 
   return output;

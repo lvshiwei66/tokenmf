@@ -64,9 +64,7 @@ describe("listAction", () => {
 
     const output = stdout.join("\n");
     expect(output).toContain("packcode");
-    expect(output).toContain("200ms");
-    expect(output).toContain("$0.04");
-    expect(output).toContain("m1, m2, m3 (+1)");
+    expect(output).toContain("m1, m2 (+4)");
     expect(output).toContain("2 provider(s) total");
   });
 
