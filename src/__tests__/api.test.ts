@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { fetchProviderList, fetchProviderInfo } from "../providers/api.js";
 import type { ApiError } from "../providers/api.js";
 
-const API_URL = "https://api.tokenmf.com";
+const API_URL = "https://tokenmf.com";
 const CLIENT_ID = "test-client-123";
 
 describe("providers/api", () => {
@@ -46,7 +46,7 @@ describe("providers/api", () => {
       await fetchProviderList(API_URL, CLIENT_ID);
 
       expect(fetchMock).toHaveBeenCalledWith(
-        "https://api.tokenmf.com/api/v1/providers",
+        "https://tokenmf.com/api/v1/providers",
         { headers: { "x-client-id": expect.stringMatching(/^test-client-123\.[a-f0-9]{16}$/) } },
       );
     });
@@ -120,7 +120,7 @@ describe("providers/api", () => {
       await fetchProviderInfo(API_URL, CLIENT_ID, "test provider");
 
       expect(fetchMock).toHaveBeenCalledWith(
-        "https://api.tokenmf.com/api/v1/providers/test%20provider",
+        "https://tokenmf.com/api/v1/providers/test%20provider",
         expect.anything(),
       );
     });
