@@ -1,3 +1,4 @@
+import Table from "cli-table3";
 import type { ConfigProvider } from "../config/index.js";
 import { fetchProviderList } from "../providers/api.js";
 import type { ProviderListItem } from "../types/provider.js";
@@ -9,52 +10,75 @@ export interface ListOptions {
 
 const DEFAULT_LIMIT = 20;
 
-function truncateDesc(desc: string, maxLen: number): string {
-  const chars = Array.from(desc);
-  if (chars.length <= maxLen) return desc;
-  return chars.slice(0, maxLen).join("") + "...";
-}
-
-function formatModels(models: string[], modelCount: number): string {
-  const MAX_MODEL_LEN = 10;
-  const trunc = (m: string) => m.length > MAX_MODEL_LEN ? m.slice(0, MAX_MODEL_LEN) + "…" : m;
-  const shown = models.slice(0, 2).map(trunc);
-  let result = shown.join(", ");
-  if (modelCount > 2) {
-    result += ` (+${String(modelCount)})`;
-  }
-  return result;
-}
-
+/** Column widths (terminal display columns — CJK chars count as 2) */
 const COLS = { name: 10, models: 32, desc: 32, tags: 24 } as const;
 
-function pad(text: string, width: number): string {
-  const chars = Array.from(text);
-  if (chars.length > width) return chars.slice(0, width - 1).join("") + "…";
-  return text.padEnd(width);
+/**
+ * Format models cell content.
+ * Shows up to 2 model names; appends (+N) for remaining.
+ * Truncates model names (not count) when the cell would overflow.
+ */
+function formatModels(models: string[], modelCount: number): string {
+  const shown = models.slice(0, 2);
+  let joined = shown.join(", ");
+  if (modelCount > 2) {
+    const suffix = ` (+${String(modelCount)})`;
+    // Reserve space for the count suffix
+    const suffixLen = suffix.length;
+    if (joined.length + suffixLen > COLS.models) {
+      const truncAt = COLS.models - suffixLen - 1; // -1 for "…" ellipsis
+      if (truncAt > 0) {
+        joined = joined.slice(0, truncAt) + "…";
+      }
+    }
+    return joined + suffix;
+  }
+  return joined;
 }
 
 function formatTable(items: ProviderListItem[], total: number, all: boolean): string {
   const rows = all ? items : items.slice(0, DEFAULT_LIMIT);
 
-  const header =
-    pad("Name", COLS.name) + " " +
-    pad("Models", COLS.models) + " " +
-    pad("Description", COLS.desc) + " " +
-    pad("Tags", COLS.tags);
-
-  const lines = [header];
+  const table = new Table({
+    head: ["Name", "Models", "Description", "Tags"],
+    colWidths: [COLS.name, COLS.models, COLS.desc, COLS.tags],
+    wordWrap: false,
+    truncate: "…",
+    style: {
+      "padding-left": 0,
+      "padding-right": 0,
+      head: [],
+      border: [],
+    },
+    chars: {
+      top: "",
+      "top-mid": "",
+      "top-left": "",
+      "top-right": "",
+      bottom: "",
+      "bottom-mid": "",
+      "bottom-left": "",
+      "bottom-right": "",
+      left: "",
+      "left-mid": "",
+      mid: "",
+      "mid-mid": "",
+      right: "",
+      "right-mid": "",
+      middle: " ",
+    },
+  });
 
   for (const p of rows) {
-    lines.push(
-      pad(p.name, COLS.name) + " " +
-      pad(formatModels(p.models, p.modelCount), COLS.models) + " " +
-      pad(truncateDesc(p.description, COLS.desc), COLS.desc) + " " +
-      pad(p.tags.join(", "), COLS.tags),
-    );
+    table.push([
+      p.name,
+      formatModels(p.models, p.modelCount),
+      p.description,
+      p.tags.join(", "),
+    ]);
   }
 
-  let output = lines.join("\n");
+  let output = table.toString();
 
   if (!all && total > DEFAULT_LIMIT) {
     output += `\n---\n${String(total)} provider(s) total. Use --all to show all`;

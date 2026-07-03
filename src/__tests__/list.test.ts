@@ -90,8 +90,7 @@ describe("listAction", () => {
   });
 
   it("truncates description in table", async () => {
-    // Description > 32 chars → truncateDesc adds "..."
-    // Column width 28 will also clamp, but let's verify the truncation happened
+    // Description > 32 cols (COLS.desc) → cli-table3 truncates with "…"
     const longDesc = "A rather long description text for testing truncation functionality";
     mockProviders = [{
       name: "test",
@@ -158,5 +157,31 @@ describe("listAction", () => {
     );
 
     expect(stderr.join("\n")).toContain("Response data error");
+  });
+
+  it("truncates long model names at cell level, not per-model (regression #2)", async () => {
+    mockProviders = [{
+      name: "test",
+      latency: 100,
+      price: "$0.01",
+      tokensPerSecond: null,
+      description: "test",
+      tags: [],
+      models: ["deepseek-v4-pro", "deepseek-v4-flash", "claude-opus-4-6"],
+      modelCount: 5,
+    }];
+
+    await listAction(
+      { getConfig: async () => null, getApiUrl: () => "https://test.api" },
+      { all: false, debug: false },
+    );
+
+    const output = stdout.join("\n");
+    // First model should appear in full (not per-model truncated to 10 chars)
+    expect(output).toContain("deepseek-v4-pro");
+    // Model count suffix must be preserved
+    expect(output).toContain("(+5)");
+    // The old per-model truncation "deepseek-v…" (10 chars) must NOT appear
+    expect(output).not.toMatch(/\bdeepseek-v…\b/);
   });
 });
