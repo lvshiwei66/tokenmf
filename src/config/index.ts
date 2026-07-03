@@ -39,7 +39,7 @@ export { CONFIG_DIR, CONFIG_PATH };
 
 // ── Config I/O ───────────────────────────────────────────────
 
-const DEFAULT_API_URL = "https://api.tokenmf.com";
+const DEFAULT_API_URL = "https://tokenmf.com";
 
 export async function saveConfig(
   filePath: string,
