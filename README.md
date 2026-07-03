@@ -50,19 +50,3 @@ tmf test openai
 # 查询厂商详情
 tmf ask openai
 ```
-
-## 环境变量
-
-| 变量 | 说明 | 默认值 |
-|------|------|--------|
-| `TMF_API_URL` | API 服务地址 | `https://api.tokenmofang.com` |
-
-## 开发
-
-```bash
-git clone https://github.com/lvshiwei66/tokenmofang
-cd tokenmofang/code/cli
-npm install
-npm run build
-node dist/index.js --help
-```
