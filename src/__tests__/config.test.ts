@@ -86,7 +86,7 @@ describe("CLI config", () => {
     it("returns default URL when nothing configured", () => {
       delete process.env["TMF_API_URL"];
       const url = getApiUrl(null);
-      expect(url).toBe("https://api.tokenmofang.com");
+      expect(url).toBe("https://api.tokenmf.com");
     });
 
     it("returns env var when set", () => {

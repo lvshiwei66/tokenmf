@@ -1,5 +1,5 @@
 {
-  "name": "@tokenmofang/cli",
+  "name": "tmf",
   "version": "0.1.0",
   "description": "Token魔方 – Spin up any LLM provider in one CLI command.",
   "license": "MIT",
@@ -17,7 +17,7 @@
     "ai",
     "provider",
     "cli",
-    "tokenmofang",
+    "tmf",
     "openai",
     "anthropic",
     "claude-code",
@@ -26,7 +26,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/lvshiwei66/tokenmofang"
+    "url": "https://github.com/lvshiwei66/tmf"
   },
   "engines": {
     "node": ">=18"
