@@ -28,7 +28,13 @@ export function createProgram(): Command {
     .option("-a, --app <app>", "Target application (codex, claude-code, openclaw)")
     .action(async (provider, options) => {
       try {
-        const config = await getConfig(CONFIG_PATH);
+        // Auto-run setup if config is missing（首次运行时自动初始化）
+        let config = await getConfig(CONFIG_PATH);
+        if (!config) {
+          console.log("Setting up...\n");
+          await setup();
+          config = await getConfig(CONFIG_PATH);
+        }
         const apiUrl = getApiUrl(config);
         const settings = await loadSettings();
         const clientId = config?.fingerprint;
