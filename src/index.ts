@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { realpathSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { getVersion } from "./utils/version.js";
 import { setup } from "./commands/setup.js";
 import { listAction } from "./commands/list.js";
 import { askAction } from "./commands/ask.js";
@@ -10,13 +12,16 @@ import { rollbackCommand } from "./commands/rollback.js";
 import { registerTestCommand } from "./commands/test.js";
 import { getConfig, getApiUrl, CONFIG_PATH, loadSettings } from "./config/index.js";
 
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 export function createProgram(): Command {
   const program = new Command();
 
   program
     .name("tmf")
     .description("TokenMofang – Spin up any LLM provider in one CLI command.")
-    .version(`0.1.0\nTMF_API_URL: ${getApiUrl(null)}`)
+    .version(`${getVersion(join(__dirname, "..")) ?? "0.0.0"}\nTMF_API_URL: ${getApiUrl(null)}`)
     .option("-d, --debug", "Output debug information")
     .addHelpText("after", `\nEnvironment:\n  TMF_API_URL  ${getApiUrl(null)}\n`);
   // ── use ─────────────────────────────────────────────────────
