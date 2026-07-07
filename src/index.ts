@@ -32,7 +32,7 @@ export function createProgram(): Command {
     .option("--models <models...>", "Multiple models (first is primary, rest are fallback chain)")
     .option("--env <env...>", "Custom env vars to set (KEY=VALUE format)")
     .option("--effort <level>", "Effort level: low, medium, high, xhigh")
-    .option("-a, --app <app>", "Target application (codex, claude-code, openclaw)")
+    .option("-a, --app <app>", "Target application: codex, claude-code (aliases: claude, cc), openclaw")
     .action(async (provider, options) => {
       try {
         // Auto-run setup if config is missing（首次运行时自动初始化）
@@ -185,7 +185,7 @@ export function createProgram(): Command {
   program
     .command("rollback")
     .description("Restore application config from backup")
-    .option("-a, --app <app>", "Target application (codex, claude-code, openclaw)")
+    .option("-a, --app <app>", "Target application: codex, claude-code (aliases: claude, cc), openclaw")
     .action(async (options) => {
       try {
         await rollbackCommand({ app: options.app });

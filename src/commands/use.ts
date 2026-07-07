@@ -7,7 +7,7 @@ import {
   setProviderMemory,
 } from "../config/index.js";
 import { fetchProviderInfo } from "../providers/api.js";
-import { getAppfit } from "../appfits/index.js";
+import { getAppfit, resolveAppName } from "../appfits/index.js";
 import type { UseParams, ProviderDetail, RoleModels } from "../types/provider.js";
 import type { AppConfig } from "../detectors/types.js";
 
@@ -70,11 +70,17 @@ export function selectApp(
   apps: AppConfig[],
 ): AppConfig {
   if (providedApp) {
-    const app = apps.find((a) => a.name === providedApp);
-    if (!app) {
+    const canonicalName = resolveAppName(providedApp);
+    if (!canonicalName) {
       const names = apps.map((a) => a.name).join("、");
       throw new Error(
-        `Application "${providedApp}" not found. Installed apps: ${names || "none"}`,
+        `Unknown application "${providedApp}". Available: codex, claude-code (claude, cc), openclaw.`,
+      );
+    }
+    const app = apps.find((a) => a.name === canonicalName);
+    if (!app) {
+      throw new Error(
+        `${canonicalName} installation not detected, skipping.`,
       );
     }
     return app;

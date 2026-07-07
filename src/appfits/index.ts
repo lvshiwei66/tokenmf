@@ -9,6 +9,21 @@ const registry: Record<string, Appfit> = {
   openclaw: openclawAppfit,
 };
 
+/** Aliases that map to the canonical app name. */
+const ALIASES: Record<string, string> = {
+  codex: "codex",
+  claude: "claude-code",
+  cc: "claude-code",
+  "claude-code": "claude-code",
+  openclaw: "openclaw",
+};
+
+/** Resolve an alias or canonical name to the canonical app name. */
+export function resolveAppName(raw: string): string | undefined {
+  return ALIASES[raw.toLowerCase()];
+}
+
 export function getAppfit(name: string): Appfit | undefined {
-  return registry[name];
+  const canonical = resolveAppName(name);
+  return canonical ? registry[canonical] : undefined;
 }
