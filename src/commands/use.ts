@@ -177,9 +177,15 @@ export async function useCommand(
   const settings = await loadSettings();
   let memory = getProviderMemory(settings, provider);
 
-  // 2. Resolve apiKey: CLI > memory > interactive
+  // 2. Resolve apiKey: CLI > memory > interactive (TTY only)
   let apiKey = options.key ?? memory?.apiKey;
   if (!apiKey) {
+    if (!process.stdin.isTTY) {
+      throw new Error(
+        `Provider "${provider}" not found and no API key available.\n` +
+          `Use --key to provide an API key, or check available templates with "tmf save".`,
+      );
+    }
     const currentHint = memory?.apiKey
       ? ` [current: ${"*".repeat(8)}]`
       : "";
