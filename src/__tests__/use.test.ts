@@ -469,7 +469,7 @@ describe("use command — E2E", () => {
         expect(successMsg).toContain("model: sonnet");
         expect(successMsg).toContain("fallback: [haiku]");
         expect(successMsg).toContain("effort: high");
-        expect(successMsg).toContain("+1 env var(s)");
+        expect(successMsg).toContain("env: 1 var(s)");
       } finally {
         restore();
       }

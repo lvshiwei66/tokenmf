@@ -30,13 +30,13 @@ export async function applyWithBackup(
   }
 
   // Output
-  const parts: string[] = [`✅ ${label}`];
-  if (params.model) parts.push(`model: ${params.model}`);
+  const lines: string[] = [`✅ ${label}`];
+  if (params.model) lines.push(`   model: ${params.model}`);
   if (params.models && params.models.length > 1)
-    parts.push(`fallback: [${params.models.slice(1).join(", ")}]`);
-  if (params.effortLevel) parts.push(`effort: ${params.effortLevel}`);
+    lines.push(`   fallback: [${params.models.slice(1).join(", ")}]`);
+  if (params.effortLevel) lines.push(`   effort: ${params.effortLevel}`);
   const envCount = params.env ? Object.keys(params.env).length : 0;
-  if (envCount > 0) parts.push(`+${envCount} env var(s)`);
-  parts.push("Please restart the application.");
-  console.log(parts.join(". "));
+  if (envCount > 0) lines.push(`   env: ${envCount} var(s)`);
+  lines.push("Please restart the application.");
+  console.log(lines.join("\n"));
 }
