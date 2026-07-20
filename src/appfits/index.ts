@@ -2,17 +2,23 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Appfit } from "./types.js";
 import type { UseParams } from "../types/provider.js";
+import type { AppConfig } from "../detectors/types.js";
+import { detectAllApps } from "../detectors/index.js";
+import { applyWithBackup } from "../commands/apply-backup.js";
 import { codexAppfit } from "./codex.js";
 import { claudeCodeAppfit } from "./claude-code.js";
 import { openclawAppfit } from "./openclaw.js";
+import { piAppfit } from "./pi.js";
+import { opencodeAppfit } from "./opencode.js";
+import { hermesAppfit } from "./hermes.js";
 
 const registry: Record<string, Appfit> = {
   codex: codexAppfit,
   "claude-code": claudeCodeAppfit,
   openclaw: openclawAppfit,
-  opencode: createJsonAppfit("opencode"),
-  hermes: createJsonAppfit("hermes"),
-  pi: createJsonAppfit("pi"),
+  opencode: opencodeAppfit,
+  hermes: hermesAppfit,
+  pi: piAppfit,
 };
 
 /** Aliases that map to the canonical app name. */
@@ -92,4 +98,66 @@ function createJsonAppfit(name: string): Appfit {
       await writeFile(configPath, JSON.stringify(config, null, 2) + "\n");
     },
   };
+}
+
+// ── App selection ────────────────────────────────────────────
+
+/**
+ * Select a single app from the detection results.
+ * Used by set, use, and rollback commands.
+ */
+export function selectApp(
+  providedApp: string | undefined,
+  apps: AppConfig[],
+): AppConfig {
+  if (providedApp) {
+    const canonicalName = resolveAppName(providedApp);
+    if (!canonicalName) {
+      throw new Error(
+        `Unknown application "${providedApp}". Available: ${getSupportedAppNames()}.`,
+      );
+    }
+    const app = apps.find((a) => a.name === canonicalName);
+    if (!app) {
+      throw new Error(
+        `${canonicalName} installation not detected, skipping.`,
+      );
+    }
+    return app;
+  }
+
+  if (apps.length === 0) {
+    throw new Error(
+      `No installed AI applications detected. Supported apps: ${getSupportedAppNames()}.`,
+    );
+  }
+
+  if (apps.length === 1) {
+    return apps[0];
+  }
+
+  const names = apps.map((a) => a.name).join("、");
+  throw new Error(
+    `Multiple applications detected (${names}). Use --app to specify the target application.`,
+  );
+}
+
+// ── Shared config mutation ───────────────────────────────────
+
+/**
+ * Detect, select, and apply configuration to a single app.
+ * This is the shared core used by both `set` and `use` commands.
+ */
+export async function configureApp(
+  appName: string,
+  params: UseParams,
+  label: string,
+): Promise<void> {
+  const apps = detectAllApps();
+  const target = selectApp(appName, apps);
+  const appfit = getAppfit(target.name);
+  if (!appfit) {
+    throw new Error(`No appfit found for "${target.name}".`);
+  }
+  await applyWithBackup(target, appfit, params, label);
 }

@@ -1,5 +1,5 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join, dirname } from "node:path";
 import { homedir } from "node:os";
 import type { Detector, AppConfig } from "./types.js";
 import { getVersion } from "../utils/version.js";
@@ -25,23 +25,24 @@ export class ConfigFileDetector implements Detector {
   detect(): AppConfig | null {
     const configDir = join(homedir(), this.#config.configDirName);
     const configPath = join(configDir, this.#config.configFileName);
+    const hasConfig = existsSync(configPath);
 
-    if (!existsSync(configPath)) {
-      return null;
-    }
-
-    // If executableNames is specified, at least one must be found in PATH.
-    // This prevents detecting app installs where the config directory exists
-    // but the actual executable is not available (e.g. after manual cleanup).
+    // Check if executable is in PATH (only when executableNames is specified)
+    let execFound = false;
     if (this.#config.executableNames?.length) {
-      const found = this.#config.executableNames.some(
+      execFound = this.#config.executableNames.some(
         (name) => whichSync(name) !== null,
       );
-      if (!found) {
-        return null;
-      }
     }
 
+    // Not installed at all (executable check SKIPPED when executableNames not configured)
+    if (!hasConfig && !execFound) return null;
+
+    // Installed but config file missing: auto-create only if executable was verified
+    if (!hasConfig && execFound) {
+      mkdirSync(dirname(configPath), { recursive: true });
+      writeFileSync(configPath, this.#emptyConfig());
+    }
     const version = getVersion(configDir);
 
     return {
@@ -51,5 +52,14 @@ export class ConfigFileDetector implements Detector {
       configPath,
       configFormat: this.#config.configFormat,
     };
+  }
+
+  #emptyConfig(): string {
+    switch (this.#config.configFormat) {
+      case "json": return "{}\n";
+      case "yaml": return "{}\n";
+      case "toml": return "";
+      default: return "{}\n";
+    }
   }
 }

@@ -3,9 +3,8 @@ import { testProvider } from "../providers/tester.js";
 import { fetchProviderInfo } from "../providers/api.js";
 import {
   loadSettings,
-  getConfig,
   getApiUrl,
-  CONFIG_PATH,
+  getFingerprint,
 } from "../config/index.js";
 import { TestError, TEST_EXIT_CODES } from "../types/provider.js";
 import type { TestResult } from "../types/provider.js";
@@ -145,11 +144,10 @@ export function registerTestCommand(program: Command): void {
       let resolved: ResolvedTestParams;
       let result: TestResult;
 
-      // Resolve apiUrl and clientId from config
-      const config = await getConfig(CONFIG_PATH);
-      const apiUrl = getApiUrl(config);
+      // Resolve apiUrl and clientId on-demand
+      const apiUrl = getApiUrl();
       const settings = await loadSettings();
-      const clientId = settings.clientId ?? "unknown";
+      const clientId = settings.clientId ?? getFingerprint();
 
       try {
         resolved = await resolveParams(

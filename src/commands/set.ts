@@ -1,12 +1,9 @@
-import { applyWithBackup } from "./apply-backup.js";
-import { detectAllApps } from "../detectors/index.js";
+import { configureApp, resolveAppName } from "../appfits/index.js";
 import {
   loadTemplates,
   saveTemplates,
   setTemplate,
 } from "../config/index.js";
-import { getAppfit, resolveAppName } from "../appfits/index.js";
-import { selectApp } from "./use.js";
 import type { UseParams, Template, RoleModels } from "../types/provider.js";
 
 export interface SetOptions {
@@ -40,12 +37,7 @@ export async function setCommand(
     );
   }
 
-  const appfit = getAppfit(canonical);
-  if (!appfit) {
-    throw new Error(`No appfit found for "${app}".`);
-  }
-
-  // 3. Build UseParams directly (no API call)
+  // 3. Build UseParams
   const params: UseParams = {
     provider: canonical,
     baseUrl: options.baseUrl,
@@ -57,19 +49,10 @@ export async function setCommand(
     effortLevel: options.effort,
   };
 
-  // 4. Detect and select target app
-  const allApps = detectAllApps();
-  const target = selectApp(canonical, allApps);
+  // 4. Detect, select, and apply config (shared core)
+  await configureApp(canonical, params, `${canonical} configured`);
 
-  // 5. Apply with backup
-  await applyWithBackup(
-    target,
-    appfit,
-    params,
-    `${target.name} configured`,
-  );
-
-  // 8. Optionally save as template
+  // 5. Optionally save as template
   if (options.saveAs) {
     const template: Template = {
       name: options.saveAs,

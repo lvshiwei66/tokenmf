@@ -1,4 +1,3 @@
-import type { ConfigProvider } from "../config/index.js";
 import { fetchProviderInfo } from "../providers/api.js";
 
 export interface AskOptions {
@@ -7,14 +6,11 @@ export interface AskOptions {
 
 export async function askAction(
   provider: string,
-  configProvider: ConfigProvider,
+  apiUrl: string,
+  clientId: string,
   options: AskOptions,
 ): Promise<void> {
-  const config = await configProvider.getConfig();
-  const apiUrl = configProvider.getApiUrl(config);
-  const fingerprint = config?.fingerprint ?? "unknown";
-
-  const result = await fetchProviderInfo(apiUrl, fingerprint, provider);
+  const result = await fetchProviderInfo(apiUrl, clientId, provider);
 
   if ("code" in result) {
     if (options.debug) {

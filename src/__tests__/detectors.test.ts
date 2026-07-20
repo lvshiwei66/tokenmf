@@ -3,6 +3,7 @@ import { detectAllApps } from "../detectors/index.js";
 import { ConfigFileDetector } from "../detectors/config-file-detector.js";
 import type { DetectorConfig } from "../detectors/config-file-detector.js";
 import * as fs from "node:fs";
+import * as whichMod from "../utils/which.js";
 
 vi.mock("node:fs", async () => {
   const actual = await vi.importActual<typeof fs>("node:fs");
@@ -12,6 +13,10 @@ vi.mock("node:fs", async () => {
     existsSync: vi.fn(actual.existsSync),
   };
 });
+
+vi.mock("../utils/which.js", () => ({
+  whichSync: vi.fn(() => null),
+}));
 
 const DETECTOR_CONFIGS: DetectorConfig[] = [
   { name: "codex", configDirName: ".codex", configFileName: "config.toml", configFormat: "toml" },
@@ -54,6 +59,7 @@ describe("detectAllApps", () => {
 
   it("returns empty array when no apps installed", () => {
     vi.mocked(fs.existsSync).mockReturnValue(false);
+    vi.mocked(whichMod.whichSync).mockReturnValue(null);
     expect(detectAllApps()).toEqual([]);
   });
 

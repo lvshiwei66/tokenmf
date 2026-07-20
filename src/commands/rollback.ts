@@ -1,7 +1,7 @@
 import { copyFile, unlink, access } from "node:fs/promises";
 import { detectAllApps } from "../detectors/index.js";
 import { getAppfit } from "../appfits/index.js";
-import { selectApp } from "./use.js";
+import { selectApp } from "../appfits/index.js";
 
 export async function rollbackCommand(
   options: { app?: string },

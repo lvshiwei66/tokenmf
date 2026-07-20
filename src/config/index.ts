@@ -1,22 +1,9 @@
 import { readFile, writeFile, rename, mkdir } from "node:fs/promises";
-import { join, dirname } from "node:path";
+import { join } from "node:path";
 import { homedir } from "node:os";
 import type { Template } from "../types/provider.js";
 
-
 export { getFingerprint, getClientId } from "../utils/fingerprint.js";
-
-// ── Config types ─────────────────────────────────────────────
-
-export interface CliConfig {
-  fingerprint: string;
-  apiUrl?: string;
-}
-
-export interface ConfigProvider {
-  getConfig: () => Promise<CliConfig | null>;
-  getApiUrl: (config: CliConfig | null) => string;
-}
 
 // ── Settings types ───────────────────────────────────────────
 
@@ -34,47 +21,23 @@ export interface Settings {
 // ── Paths ────────────────────────────────────────────────────
 
 const CONFIG_DIR = join(homedir(), ".tmf");
-const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 const SETTINGS_PATH = join(CONFIG_DIR, "store", "used.json");
-
 const TEMPLATES_PATH = join(CONFIG_DIR, "templates.json");
 
-export { CONFIG_DIR, CONFIG_PATH, TEMPLATES_PATH };
+export { CONFIG_DIR, TEMPLATES_PATH };
 
-// ── Config I/O ───────────────────────────────────────────────
+// ── API URL ──────────────────────────────────────────────────
 
 const DEFAULT_API_URL = "https://tokenmf.com";
 
-export async function saveConfig(
-  filePath: string,
-  config: CliConfig,
-): Promise<void> {
-  const dir = dirname(filePath);
-  await mkdir(dir, { recursive: true });
-  await writeFile(filePath, JSON.stringify(config, null, 2), "utf-8");
-}
-
-export async function getConfig(
-  filePath: string,
-): Promise<CliConfig | null> {
-  try {
-    const raw = await readFile(filePath, "utf-8");
-    return JSON.parse(raw) as CliConfig;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Resolve the API base URL using priority:
- * 1. TMF_API_URL environment variable
- * 2. apiUrl field in config file
- * 3. Hardcoded default
+ * 1. TMF_API_URL env var
+ * 2. Default
  */
-export function getApiUrl(config: CliConfig | null): string {
+export function getApiUrl(): string {
   const envUrl = process.env["TMF_API_URL"];
   if (envUrl) return envUrl;
-  if (config?.apiUrl) return config.apiUrl;
   return DEFAULT_API_URL;
 }
 
@@ -136,7 +99,7 @@ export async function loadTemplates(): Promise<TemplateStore> {
 }
 
 export async function saveTemplates(store: TemplateStore): Promise<void> {
-  await mkdir(dirname(TEMPLATES_PATH), { recursive: true });
+  await mkdir(join(CONFIG_DIR), { recursive: true });
   const tmpPath = TEMPLATES_PATH + ".tmp";
   await writeFile(tmpPath, JSON.stringify(store, null, 2));
   await rename(tmpPath, TEMPLATES_PATH);

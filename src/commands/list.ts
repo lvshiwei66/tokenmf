@@ -1,5 +1,4 @@
 import Table from "cli-table3";
-import type { ConfigProvider } from "../config/index.js";
 import { fetchProviderList } from "../providers/api.js";
 import type { ProviderListItem } from "../types/provider.js";
 
@@ -18,82 +17,38 @@ const COLS = { name: 20, models: 32, desc: 32, tags: 24 } as const;
  * Shows up to 2 model names; appends (+N) for remaining.
  * Truncates model names (not count) when the cell would overflow.
  */
-function formatModels(models: string[], modelCount: number): string {
-  const shown = models.slice(0, 2);
-  let joined = shown.join(", ");
-  if (modelCount > 2) {
-    const suffix = ` (+${String(modelCount)})`;
-    // Reserve space for the count suffix
-    const suffixLen = suffix.length;
-    if (joined.length + suffixLen > COLS.models) {
-      const truncAt = COLS.models - suffixLen - 1; // -1 for "…" ellipsis
-      if (truncAt > 0) {
-        joined = joined.slice(0, truncAt) + "…";
-      }
-    }
-    return joined + suffix;
+function formatModels(models: string[]): string {
+  if (!models || models.length === 0) return "-";
+  const maxVisible = 2;
+  const shown = models.slice(0, maxVisible);
+  let result = shown.join(", ");
+  if (models.length > maxVisible) {
+    result += ` (+${String(models.length - maxVisible)})`;
   }
-  return joined;
+  if (result.length > COLS.models) {
+    result = result.slice(0, COLS.models - 3) + "...";
+  }
+  return result;
 }
 
 function formatTable(items: ProviderListItem[], total: number, all: boolean): string {
-  const rows = all ? items : items.slice(0, DEFAULT_LIMIT);
-
   const table = new Table({
     head: ["Name", "Models", "Description", "Tags"],
     colWidths: [COLS.name, COLS.models, COLS.desc, COLS.tags],
     wordWrap: false,
-    truncate: "…",
-    style: {
-      "padding-left": 0,
-      "padding-right": 0,
-      head: [],
-      border: [],
-    },
-    chars: {
-      top: "",
-      "top-mid": "",
-      "top-left": "",
-      "top-right": "",
-      bottom: "",
-      "bottom-mid": "",
-      "bottom-left": "",
-      "bottom-right": "",
-      left: "",
-      "left-mid": "",
-      mid: "─",
-      "mid-mid": " ",
-      right: "",
-      "right-mid": "",
-      middle: " ",
-    },
+    style: { head: [], border: [] },
   });
 
-  for (const p of rows) {
+  for (const item of items) {
     table.push([
-      p.name,
-      formatModels(p.models, p.modelCount),
-      p.description.replace(/\n/g, " "),
-      p.tags.join(", ").replace(/\n/g, " "),
+      item.name,
+      formatModels(item.models),
+      item.description ?? "",
+      item.tags?.join(", ") ?? "",
     ]);
   }
 
   let output = table.toString();
-
-  // Keep only the first separator line (after header), strip duplicates between data rows
-  {
-    const lines = output.split("\n");
-    const sepRe = /^─/;
-    let seen = false;
-    const filtered = lines.filter((line) => {
-      if (sepRe.test(line.trimStart())) {
-        if (!seen) { seen = true; return true; }
-        return false;
-      }
-      return true;
-    });
-    output = filtered.join("\n");
-  }
 
   if (!all && total > DEFAULT_LIMIT) {
     output += `\n---\n${String(total)} provider(s) total. Use --all to show all`;
@@ -105,15 +60,13 @@ function formatTable(items: ProviderListItem[], total: number, all: boolean): st
 }
 
 export async function listAction(
-  configProvider: ConfigProvider,
+  apiUrl: string,
+  clientId: string,
   options: ListOptions,
 ): Promise<void> {
-  const config = await configProvider.getConfig();
-  const apiUrl = configProvider.getApiUrl(config);
-  const fingerprint = config?.fingerprint ?? "unknown";
   const startedAt = Date.now();
 
-  const result = await fetchProviderList(apiUrl, fingerprint);
+  const result = await fetchProviderList(apiUrl, clientId);
 
   if ("code" in result) {
     if (options.debug) {

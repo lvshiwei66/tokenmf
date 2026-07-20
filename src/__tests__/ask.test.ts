@@ -41,10 +41,7 @@ describe("askAction", () => {
   });
 
   it("renders provider detail", async () => {
-    await askAction("packcode", {
-      getConfig: () => Promise.resolve(null),
-      getApiUrl: () => "https://test.api",
-    }, { debug: false });
+    await askAction("packcode", "https://test.api", "test-fingerprint", { debug: false });
 
     const output = stdout.join("\n");
     expect(output).toContain("🔍 packcode");
@@ -59,10 +56,7 @@ describe("askAction", () => {
   it("shows 404 error for unknown provider", async () => {
     mockResult = { code: "NOT_FOUND", message: "❌ Provider not found: unknown" };
 
-    await askAction("unknown", {
-      getConfig: () => Promise.resolve(null),
-      getApiUrl: () => "https://test.api",
-    }, { debug: false });
+    await askAction("unknown", "https://test.api", "test-fingerprint", { debug: false });
 
     expect(stderr.join("\n")).toContain("Provider not found: unknown");
   });
@@ -70,10 +64,7 @@ describe("askAction", () => {
   it("shows network error on fetch failure", async () => {
     mockResult = { code: "NETWORK", message: "❌ Please check network connection" };
 
-    await askAction("packcode", {
-      getConfig: () => Promise.resolve(null),
-      getApiUrl: () => "https://test.api",
-    }, { debug: false });
+    await askAction("packcode", "https://test.api", "test-fingerprint", { debug: false });
 
     expect(stderr.join("\n")).toContain("Please check network connection");
   });
@@ -81,10 +72,7 @@ describe("askAction", () => {
   it("shows 429 rate limit error", async () => {
     mockResult = { code: "RATE_LIMITED", message: "❌ Too many requests, please try again later" };
 
-    await askAction("packcode", {
-      getConfig: () => Promise.resolve(null),
-      getApiUrl: () => "https://test.api",
-    }, { debug: false });
+    await askAction("packcode", "https://test.api", "test-fingerprint", { debug: false });
 
     expect(stderr.join("\n")).toContain("Too many requests");
   });
@@ -92,10 +80,7 @@ describe("askAction", () => {
   it("outputs debug info when --debug is set", async () => {
     mockResult = { code: "SERVER_ERROR", message: "❌ Service error (status: 500), please try again later", statusCode: 500 };
 
-    await askAction("packcode", {
-      getConfig: () => Promise.resolve(null),
-      getApiUrl: () => "https://test.api",
-    }, { debug: true });
+    await askAction("packcode", "https://test.api", "test-fingerprint", { debug: true });
 
     const debugOutput = stderr.join("\n");
     expect(debugOutput).toContain("[Debug]");
@@ -113,10 +98,7 @@ describe("askAction", () => {
       updated_at: "",
     };
 
-    await askAction("minimal", {
-      getConfig: () => Promise.resolve(null),
-      getApiUrl: () => "https://test.api",
-    }, { debug: false });
+    await askAction("minimal", "https://test.api", "test-fingerprint", { debug: false });
 
     const output = stdout.join("\n");
     expect(output).toContain("🔍 minimal");

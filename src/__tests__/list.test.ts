@@ -57,10 +57,7 @@ describe("listAction", () => {
   });
 
   it("renders provider table with default 20 limit", async () => {
-    await listAction(
-      { getConfig: async () => null, getApiUrl: () => "https://test.api" },
-      { all: false, debug: false },
-    );
+    await listAction("https://test.api", "test-fingerprint", { all: false, debug: false });
 
     const output = stdout.join("\n");
     expect(output).toContain("packcode");
@@ -69,10 +66,7 @@ describe("listAction", () => {
   });
 
   it("renders all providers with --all", async () => {
-    await listAction(
-      { getConfig: async () => null, getApiUrl: () => "https://test.api" },
-      { all: true, debug: false },
-    );
+    await listAction("https://test.api", "test-fingerprint", { all: true, debug: false });
 
     const output = stdout.join("\n");
     expect(output).toContain("packcode");
@@ -80,10 +74,7 @@ describe("listAction", () => {
   });
 
   it("shows model column correctly for small model lists", async () => {
-    await listAction(
-      { getConfig: async () => null, getApiUrl: () => "https://test.api" },
-      { all: false, debug: false },
-    );
+    await listAction("https://test.api", "test-fingerprint", { all: false, debug: false });
 
     const output = stdout.join("\n");
     expect(output).toContain("x1");
@@ -103,10 +94,7 @@ describe("listAction", () => {
       modelCount: 0,
     }];
 
-    await listAction(
-      { getConfig: async () => null, getApiUrl: () => "https://test.api" },
-      { all: false, debug: false },
-    );
+    await listAction("https://test.api", "test-fingerprint", { all: false, debug: false });
 
     const output = stdout.join("\n");
     // The description should appear truncated in the output
@@ -116,10 +104,7 @@ describe("listAction", () => {
   });
 
   it("outputs debug info when --debug is set", async () => {
-    await listAction(
-      { getConfig: async () => null, getApiUrl: () => "https://test.api" },
-      { all: false, debug: true },
-    );
+    await listAction("https://test.api", "test-fingerprint", { all: false, debug: true });
 
     const debugOutput = stderr.join("\n");
     expect(debugOutput).toContain("[Debug]");
@@ -129,10 +114,7 @@ describe("listAction", () => {
   it("shows network error message on fetch failure", async () => {
     mockError = { code: "NETWORK", message: "❌ Please check network connection" };
 
-    await listAction(
-      { getConfig: async () => null, getApiUrl: () => "https://test.api" },
-      { all: false, debug: false },
-    );
+    await listAction("https://test.api", "test-fingerprint", { all: false, debug: false });
 
     expect(stderr.join("\n")).toContain("Please check network connection");
   });
@@ -140,10 +122,7 @@ describe("listAction", () => {
   it("shows service error on non-200 response", async () => {
     mockError = { code: "SERVER_ERROR", message: "❌ Service error (status: 500), please try again later", statusCode: 500 };
 
-    await listAction(
-      { getConfig: async () => null, getApiUrl: () => "https://test.api" },
-      { all: false, debug: false },
-    );
+    await listAction("https://test.api", "test-fingerprint", { all: false, debug: false });
 
     expect(stderr.join("\n")).toContain("Service error");
   });
@@ -151,10 +130,7 @@ describe("listAction", () => {
   it("shows data error on JSON parse failure", async () => {
     mockError = { code: "PARSE", message: "❌ Response data error" };
 
-    await listAction(
-      { getConfig: async () => null, getApiUrl: () => "https://test.api" },
-      { all: false, debug: false },
-    );
+    await listAction("https://test.api", "test-fingerprint", { all: false, debug: false });
 
     expect(stderr.join("\n")).toContain("Response data error");
   });
@@ -171,10 +147,7 @@ describe("listAction", () => {
       modelCount: 5,
     }];
 
-    await listAction(
-      { getConfig: async () => null, getApiUrl: () => "https://test.api" },
-      { all: false, debug: false },
-    );
+    await listAction("https://test.api", "test-fingerprint", { all: false, debug: false });
 
     const output = stdout.join("\n");
     // First model should appear in full (not per-model truncated to 10 chars)

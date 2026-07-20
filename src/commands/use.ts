@@ -1,4 +1,3 @@
-import { applyWithBackup } from "./apply-backup.js";
 import { detectAllApps } from "../detectors/index.js";
 import {
   loadSettings,
@@ -11,7 +10,7 @@ import {
 import type { Template } from "../types/provider.js";
 
 import { fetchProviderInfo } from "../providers/api.js";
-import { getAppfit, resolveAppName, getSupportedAppNames } from "../appfits/index.js";
+import { selectApp, configureApp, getAppfit } from "../appfits/index.js";
 import type { UseParams, ProviderDetail, RoleModels } from "../types/provider.js";
 import type { AppConfig } from "../detectors/types.js";
 
@@ -23,6 +22,11 @@ async function promptHidden(prompt: string): Promise<string> {
     stdout.write(prompt);
 
     let answer = "";
+    const cleanup = () => {
+      stdin.removeListener("data", onData);
+      if (!wasRaw) stdin.setRawMode(false);
+      stdin.pause();
+    };
     const onData = (chunk: Buffer) => {
       const str = chunk.toString("utf-8");
       for (const char of str) {
@@ -47,12 +51,6 @@ async function promptHidden(prompt: string): Promise<string> {
       }
     };
 
-    const cleanup = () => {
-      stdin.removeListener("data", onData);
-      if (!wasRaw) stdin.setRawMode(false);
-      stdin.pause();
-    };
-
     stdin.resume();
     stdin.on("data", onData);
   });
@@ -69,43 +67,6 @@ function resolveModel(
   return undefined;
 }
 
-export function selectApp(
-  providedApp: string | undefined,
-  apps: AppConfig[],
-): AppConfig {
-  if (providedApp) {
-    const canonicalName = resolveAppName(providedApp);
-    if (!canonicalName) {
-      throw new Error(
-        `Unknown application "${providedApp}". Available: ${getSupportedAppNames()}.`,
-      );
-    }
-    const app = apps.find((a) => a.name === canonicalName);
-    if (!app) {
-      throw new Error(
-        `${canonicalName} installation not detected, skipping.`,
-      );
-    }
-    return app;
-  }
-
-  if (apps.length === 0) {
-    throw new Error(
-      `No installed AI applications detected. Supported apps: ${getSupportedAppNames()}.`,
-    );
-  }
-
-  if (apps.length === 1) {
-    return apps[0];
-  }
-
-  const names = apps.map((a) => a.name).join("、");
-  throw new Error(
-    `Multiple applications detected (${names}). Use --app to specify the target application.`,
-  );
-}
-
-
 /**
  * Apply a saved template to target app(s).
  * CLI options override template values (--app, --key, --model, etc.).
@@ -115,16 +76,6 @@ async function applyTemplate(
   template: Template,
   options: { key?: string; model?: string; models?: string[]; roleModels?: RoleModels; env?: Record<string, string>; effortLevel?: string; app?: string },
 ): Promise<void> {
-  const allApps = detectAllApps();
-  const targetAppName = options.app ?? template.app;
-  const targets: AppConfig[] = targetAppName
-    ? [selectApp(targetAppName, allApps)]
-    : allApps;
-
-  if (targets.length === 0) {
-    throw new Error("No installed applications detected. Please install an AI application first.");
-  }
-
   // Merge: CLI options override template values
   const apiKey = options.key ?? template.apiKey;
   const model = options.model ?? template.model;
@@ -133,32 +84,47 @@ async function applyTemplate(
   const env = options.env ?? template.env;
   const effortLevel = options.effortLevel ?? template.effortLevel;
 
-  for (const app of targets) {
-    const appfit = getAppfit(app.name);
-    if (!appfit) {
-      console.warn(`⚠ Unsupported application: ${app.name}, skipped.`);
-      continue;
-    }
+  const params: UseParams = {
+    provider: templateName,
+    baseUrl: template.baseUrl,
+    apiKey,
+    model,
+    models,
+    roleModels,
+    env,
+    effortLevel,
+  };
 
-    const params: UseParams = {
-      provider: templateName,
-      baseUrl: template.baseUrl,
-      apiKey,
-      model,
-      models,
-      roleModels,
-      env,
-      effortLevel,
-    };
-
-    await applyWithBackup(
-      app,
-      appfit,
+  if (options.app ?? template.app) {
+    // Single target app
+    const targetAppName = options.app ?? template.app!;
+    await configureApp(
+      targetAppName,
       params,
-      `Template "${templateName}" applied to ${app.name}`,
+      `Template "${templateName}" applied to ${targetAppName}`,
     );
+    return;
+  }
+
+  // Apply to all detected apps
+  const allApps = detectAllApps();
+  if (allApps.length === 0) {
+    throw new Error("No installed applications detected. Please install an AI application first.");
+  }
+
+  for (const app of allApps) {
+    try {
+      await configureApp(
+        app.name,
+        params,
+        `Template "${templateName}" applied to ${app.name}`,
+      );
+    } catch (error) {
+      console.warn(`⚠ Skipped ${app.name}: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 }
+
 export async function useCommand(
   provider: string,
   options: { key?: string; model?: string; models?: string[]; roleModels?: RoleModels; env?: Record<string, string>; effortLevel?: string; app?: string },
@@ -226,51 +192,75 @@ export async function useCommand(
   const effectiveModel = options.models?.[0] ?? options.model;
   const model = resolveModel(effectiveModel, memory?.model, providerInfo.defaultModel);
 
-  // 5. Determine target apps
-  const allApps = detectAllApps();
-  const targets: AppConfig[] = options.app
-    ? [selectApp(options.app, allApps)]
-    : allApps;
-
-  if (targets.length === 0) {
-    throw new Error("No installed applications detected. Please install an AI application first.");
-  }
-
-  // 6. Apply to each target app
-  for (const app of targets) {
-    const appfit = getAppfit(app.name);
+  // 5. Apply to target app(s)
+  if (options.app) {
+    // Single target: resolve protocol URL
+    const allApps = detectAllApps();
+    const target = selectApp(options.app, allApps);
+    const appfit = getAppfit(target.name);
     if (!appfit) {
-      console.warn(`⚠ Unsupported application: ${app.name}, skipped.`);
-      continue;
+      throw new Error(`Unsupported application: ${target.name}`);
     }
 
     const protocol = appfit.requiredProtocol() ?? "default";
     const resolvedUrl = providerInfo.urls[protocol] ?? providerInfo.urls["default"];
     if (!resolvedUrl) {
-      console.warn(`⚠ Provider "${provider}" missing URL for "${protocol}" protocol, skipped ${app.name}.`);
-      continue;
+      throw new Error(`Provider "${provider}" missing URL for "${protocol}" protocol.`);
     }
 
-    const params: UseParams = {
-      provider,
-      baseUrl: resolvedUrl,
-      apiKey,
-      model,
-      models: options.models,
-      roleModels: options.roleModels,
-      env: options.env,
-      effortLevel: options.effortLevel,
-    };
-
-    await applyWithBackup(
-      app,
-      appfit,
-      params,
-      `Switched ${app.name} to ${provider}`,
+    await configureApp(
+      target.name,
+      {
+        provider,
+        baseUrl: resolvedUrl,
+        apiKey,
+        model,
+        models: options.models,
+        roleModels: options.roleModels,
+        env: options.env,
+        effortLevel: options.effortLevel,
+      },
+      `Switched ${target.name} to ${provider}`,
     );
+  } else {
+    // All detected apps: resolve protocol per app
+    const allApps = detectAllApps();
+    if (allApps.length === 0) {
+      throw new Error("No installed applications detected. Please install an AI application first.");
+    }
+
+    for (const app of allApps) {
+      const appfit = getAppfit(app.name);
+      if (!appfit) {
+        console.warn(`⚠ Unsupported application: ${app.name}, skipped.`);
+        continue;
+      }
+
+      const protocol = appfit.requiredProtocol() ?? "default";
+      const resolvedUrl = providerInfo.urls[protocol] ?? providerInfo.urls["default"];
+      if (!resolvedUrl) {
+        console.warn(`⚠ Provider "${provider}" missing URL for "${protocol}" protocol, skipped ${app.name}.`);
+        continue;
+      }
+
+      await configureApp(
+        app.name,
+        {
+          provider,
+          baseUrl: resolvedUrl,
+          apiKey,
+          model,
+          models: options.models,
+          roleModels: options.roleModels,
+          env: options.env,
+          effortLevel: options.effortLevel,
+        },
+        `Switched ${app.name} to ${provider}`,
+      );
+    }
   }
 
-  // 7. Update memory (shared across all apps)
+  // 6. Update memory (shared across all apps)
   const updatedMemory = {
     apiKey,
     model: model ?? undefined,
