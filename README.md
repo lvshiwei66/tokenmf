@@ -16,17 +16,10 @@ After installation, the `tmf` command is available:
 tmf --help
 ```
 
-### File I/O Permissions
-
-`tmf` requires the following filesystem permissions:
-
-- **Read** `~/.codex/`, `~/.claude/`, `~/.openclaw/` and other AI app config directories for automatic app detection
-- **Write** `~/.tmf/` directory for saving detection reports and runtime configuration
-- **Read/Write** target application config files (creates `.bak` backups during `use` / `rollback`)
-
-Run as a normal user to avoid `sudo` causing config file permission issues.
 
 ## Usage
+`tmf set` directly configures any provider without needing the Provider API — just pass `--baseUrl`, `--key`, and `--model`.
+
 
 ```bash
 # Show help
@@ -44,9 +37,20 @@ tmf use openai -k sk-xxx -m gpt-4o
 # Rollback config
 tmf rollback
 
+# Switch provider with direct config (no Provider API needed)
+tmf set claude-code --baseUrl https://api.deepseek.com/v1 --key sk-xxx --model deepseek-chat
+
+# Save as reusable template
+tmf set hermes --baseUrl https://api.deepseek.com/v1 --key sk-xxx \
+  --models opus=deepseek-v4-pro,sonnet=deepseek-v4-pro --save-as deepseek
+
 # Test provider latency
 tmf test openai
 
 # Query provider details
 tmf ask openai
 ```
+
+---
+Documentation: [tokenmf.com](https://tokenmf.com)
+
